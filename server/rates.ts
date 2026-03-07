@@ -55,12 +55,14 @@ export async function refreshRates(): Promise<void> {
       let rate: number;
 
       if (usdRates) {
-        const fromUSD = from === 'USD' ? 1 : (from === 'USDT' ? 1 : (usdRates[from] ? 1 / usdRates[from] : null));
-        const toUSD = to === 'USD' ? 1 : (to === 'USDT' ? 1 : usdRates[to]);
-        if (fromUSD === null || toUSD === undefined) {
+        // usdRates[X] = how many X per 1 USD
+        // rate from->to = usdRates[to] / usdRates[from]
+        const fromRate = from === 'USD' ? 1 : (from === 'USDT' ? 1 : usdRates[from]);
+        const toRate = to === 'USD' ? 1 : (to === 'USDT' ? 1 : usdRates[to]);
+        if (!fromRate || !toRate) {
           rate = STATIC_RATES[`${from}/${to}`] || 1;
         } else {
-          rate = toUSD / (fromUSD as number);
+          rate = toRate / fromRate;
         }
       } else {
         rate = STATIC_RATES[`${from}/${to}`] || 1;
@@ -70,7 +72,8 @@ export async function refreshRates(): Promise<void> {
     }
   }
 
-  // Upsert rates
+  // Clear old rates and insert fresh ones
+  await db.delete(exchangeRates);
   for (const entry of rateEntries) {
     await db.insert(exchangeRates).values(entry);
   }
