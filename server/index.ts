@@ -1,0 +1,79 @@
+import express from 'express';
+import session from 'express-session';
+import ConnectPgSimple from 'connect-pg-simple';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { pool } from './db.js';
+import { ensureDefaultAdmin } from './auth.js';
+import { refreshRates } from './rates.js';
+import authRouter from './routes/auth.js';
+import customersRouter from './routes/customers.js';
+import exchangeRouter from './routes/exchange.js';
+import suppliersRouter from './routes/suppliers.js';
+import txRouter, { dashRouter, ratesRouter } from './routes/transactions.js';
+import { sql } from 'drizzle-orm';
+import { db } from './db.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const app = express();
+const PORT = parseInt(process.env.PORT || '3001');
+
+app.use(express.json());
+
+const PgSession = ConnectPgSimple(session);
+app.use(session({
+  store: new PgSession({ pool, createTableIfMissing: true }),
+  secret: process.env.SESSION_SECRET || 'fx-ledger-secret-key-2024',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 },
+}));
+
+// API routes
+app.use('/api/auth', authRouter);
+app.use('/api/customers', customersRouter);
+app.use('/api/exchange', exchangeRouter);
+app.use('/api/suppliers', suppliersRouter);
+app.use('/api/transactions', txRouter);
+app.use('/api/dashboard', dashRouter);
+app.use('/api/rates', ratesRouter);
+
+// Serve built frontend in production
+const distPath = path.join(__dirname, '..', 'dist');
+app.use(express.static(distPath));
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
+async function init() {
+  try {
+    await db.execute(sql`SELECT 1`);
+    console.log('✅ Database connected');
+
+    await db.execute(sql`DO $$ BEGIN CREATE TYPE IF NOT EXISTS role AS ENUM ('admin', 'operator'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+    await db.execute(sql`DO $$ BEGIN CREATE TYPE IF NOT EXISTS tx_type AS ENUM ('deposit', 'withdrawal', 'exchange_in', 'exchange_out', 'transfer_in', 'transfer_out'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+    await db.execute(sql`DO $$ BEGIN CREATE TYPE IF NOT EXISTS payment_status AS ENUM ('pending', 'completed', 'cancelled'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+    await db.execute(sql`DO $$ BEGIN CREATE TYPE IF NOT EXISTS id_type AS ENUM ('passport', 'drivers_license', 'national_id'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username VARCHAR(100) NOT NULL UNIQUE, password TEXT NOT NULL, role role NOT NULL DEFAULT 'operator', active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS customers (id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, phone VARCHAR(50), email VARCHAR(200), wechat VARCHAR(100), id_type id_type, id_number VARCHAR(100), id_expiry VARCHAR(20), date_of_birth VARCHAR(20), bank_name VARCHAR(200), bank_account VARCHAR(100), bank_bsb VARCHAR(20), notes TEXT, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS wallets (id SERIAL PRIMARY KEY, customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE, currency VARCHAR(10) NOT NULL, balance DECIMAL(18,4) NOT NULL DEFAULT 0, updated_at TIMESTAMP NOT NULL DEFAULT NOW(), UNIQUE(customer_id, currency))`);
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS suppliers (id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, contact VARCHAR(200), phone VARCHAR(50), email VARCHAR(200), wechat VARCHAR(100), bank_name VARCHAR(200), bank_account VARCHAR(100), bank_bsb VARCHAR(20), supported_currencies TEXT NOT NULL DEFAULT '[]', notes TEXT, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS exchange_rates (id SERIAL PRIMARY KEY, from_currency VARCHAR(10) NOT NULL, to_currency VARCHAR(10) NOT NULL, rate DECIMAL(18,6) NOT NULL, source VARCHAR(50), fetched_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS exchange_orders (id SERIAL PRIMARY KEY, customer_id INTEGER NOT NULL REFERENCES customers(id), supplier_id INTEGER REFERENCES suppliers(id), from_currency VARCHAR(10) NOT NULL, to_currency VARCHAR(10) NOT NULL, from_amount DECIMAL(18,4) NOT NULL, to_amount DECIMAL(18,4) NOT NULL, market_rate DECIMAL(18,6) NOT NULL, our_rate DECIMAL(18,6) NOT NULL, fee_rate DECIMAL(8,4) NOT NULL DEFAULT 0, fee_amount DECIMAL(18,4) NOT NULL DEFAULT 0, profit DECIMAL(18,4) NOT NULL DEFAULT 0, note TEXT, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, customer_id INTEGER NOT NULL REFERENCES customers(id), wallet_id INTEGER NOT NULL REFERENCES wallets(id), type tx_type NOT NULL, currency VARCHAR(10) NOT NULL, amount DECIMAL(18,4) NOT NULL, balance_after DECIMAL(18,4) NOT NULL, note TEXT, exchange_order_id INTEGER, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS supplier_payments (id SERIAL PRIMARY KEY, supplier_id INTEGER NOT NULL REFERENCES suppliers(id), exchange_order_id INTEGER NOT NULL REFERENCES exchange_orders(id), customer_id INTEGER NOT NULL REFERENCES customers(id), currency VARCHAR(10) NOT NULL, amount DECIMAL(18,4) NOT NULL, status payment_status NOT NULL DEFAULT 'pending', note TEXT, completed_at TIMESTAMP, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+
+    console.log('✅ Tables ready');
+    await ensureDefaultAdmin();
+    await refreshRates().catch(e => console.log('Rate refresh skipped:', e.message));
+
+    app.listen(PORT, '0.0.0.0', () => console.log(`🚀 FX Ledger running on port ${PORT}`));
+  } catch (err) {
+    console.error('❌ Init error:', err);
+    process.exit(1);
+  }
+}
+
+init();
