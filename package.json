@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "db:push": "drizzle-kit push",
-    "start": "node --loader tsx/esm server/index.ts"
+    "start": "node --import tsx/esm server/index.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

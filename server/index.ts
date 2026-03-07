@@ -42,7 +42,7 @@ app.use('/api/rates', ratesRouter);
 // Serve built frontend in production
 const distPath = path.join(__dirname, '..', 'dist');
 app.use(express.static(distPath));
-app.get('*', (_req, res) => {
+app.get('/{*path}', (_req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
@@ -51,10 +51,10 @@ async function init() {
     await db.execute(sql`SELECT 1`);
     console.log('✅ Database connected');
 
-    await db.execute(sql`DO $$ BEGIN CREATE TYPE IF NOT EXISTS role AS ENUM ('admin', 'operator'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
-    await db.execute(sql`DO $$ BEGIN CREATE TYPE IF NOT EXISTS tx_type AS ENUM ('deposit', 'withdrawal', 'exchange_in', 'exchange_out', 'transfer_in', 'transfer_out'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
-    await db.execute(sql`DO $$ BEGIN CREATE TYPE IF NOT EXISTS payment_status AS ENUM ('pending', 'completed', 'cancelled'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
-    await db.execute(sql`DO $$ BEGIN CREATE TYPE IF NOT EXISTS id_type AS ENUM ('passport', 'drivers_license', 'national_id'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+    await db.execute(sql`DO $$ BEGIN CREATE TYPE role AS ENUM ('admin', 'operator'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+    await db.execute(sql`DO $$ BEGIN CREATE TYPE tx_type AS ENUM ('deposit', 'withdrawal', 'exchange_in', 'exchange_out', 'transfer_in', 'transfer_out'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+    await db.execute(sql`DO $$ BEGIN CREATE TYPE payment_status AS ENUM ('pending', 'completed', 'cancelled'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+    await db.execute(sql`DO $$ BEGIN CREATE TYPE id_type AS ENUM ('passport', 'drivers_license', 'national_id'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
 
     await db.execute(sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username VARCHAR(100) NOT NULL UNIQUE, password TEXT NOT NULL, role role NOT NULL DEFAULT 'operator', active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
     await db.execute(sql`CREATE TABLE IF NOT EXISTS customers (id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, phone VARCHAR(50), email VARCHAR(200), wechat VARCHAR(100), id_type id_type, id_number VARCHAR(100), id_expiry VARCHAR(20), date_of_birth VARCHAR(20), bank_name VARCHAR(200), bank_account VARCHAR(100), bank_bsb VARCHAR(20), notes TEXT, created_at TIMESTAMP NOT NULL DEFAULT NOW())`);
@@ -70,6 +70,7 @@ async function init() {
     await refreshRates().catch(e => console.log('Rate refresh skipped:', e.message));
 
     app.listen(PORT, '0.0.0.0', () => console.log(`🚀 FX Ledger running on port ${PORT}`));
+    ;
   } catch (err) {
     console.error('❌ Init error:', err);
     process.exit(1);
