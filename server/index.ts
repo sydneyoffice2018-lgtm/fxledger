@@ -20,6 +20,7 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '3001');
 
 app.use(express.json());
+app.set('trust proxy', 1);
 
 const PgSession = ConnectPgSimple(session);
 app.use(session({
@@ -27,7 +28,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'fx-ledger-secret-key-2024',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 },
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000,
+  },
 }));
 
 // API routes
