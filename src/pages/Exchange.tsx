@@ -59,9 +59,17 @@ export function ExchangePage() {
 
   const profit = (() => {
     const from = parseFloat(fromAmount) || 0;
-    const to = parseFloat(toAmount) || 0;
     const mr = parseFloat(marketRate) || 0;
-    return to - from * mr;
+    const our = parseFloat(ourRate) || 0;
+    if (!from || !mr || !our) return 0;
+    // Profit = (ourRate - marketRate) * fromAmount, expressed in fromCurrency
+    // Then convert to AUD if needed
+    const profitInToCurrency = (our - mr) * from;
+    // Convert profit back to AUD
+    if (toCurrency === 'AUD') return profitInToCurrency;
+    const toCnyToAud = rates.find((r: any) => r.fromCurrency === toCurrency && r.toCurrency === 'AUD');
+    const audRate = toCnyToAud ? toCnyToAud.rate : (1 / mr);
+    return profitInToCurrency * audRate;
   })();
 
   const feeAmount = (() => {
