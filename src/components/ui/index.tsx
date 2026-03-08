@@ -285,7 +285,7 @@ export function Modal({ open = true, onClose, title, children, wide, width }: {
   if (!open) return null;
   return (
     <div
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
         background: 'rgba(0,0,0,0.7)',

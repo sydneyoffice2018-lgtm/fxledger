@@ -191,7 +191,6 @@ export function SuppliersPage() {
                     <Td>
                       <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
                         <Btn size="sm" variant="secondary" onClick={() => setSelected(s)}>View</Btn>
-                        <Btn size="sm" variant="danger" onClick={() => confirm('Delete?') && deleteMut.mutate(s.id)}>🗑</Btn>
                       </div>
                     </Td>
                   </Tr>

@@ -126,19 +126,11 @@ export function AccountsPage() {
                       </div>
                       <button onClick={() => openEdit(acc)} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 16 }}>✏️</button>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 2 }}>BALANCE</div>
-                        <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "'DM Mono',monospace", color: CURRENCY_COLORS[cur] || 'var(--text)' }}>
-                          {fmt(acc.balance)}
-                        </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 2 }}>BALANCE</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "'DM Mono',monospace", color: CURRENCY_COLORS[cur] || 'var(--text)' }}>
+                        {fmt(acc.balance)}
                       </div>
-                      <button
-                        onClick={() => { if (confirm('Deactivate this account?')) deactivateMut.mutate(acc.id); }}
-                        style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text3)', cursor: 'pointer', padding: '4px 10px', fontSize: 12 }}
-                      >
-                        Remove
-                      </button>
                     </div>
                     {acc.notes && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>{acc.notes}</div>}
                   </Card>
