@@ -14,7 +14,7 @@ interface DashStats {
 
 const FLOW_STEPS = [
   { icon: '💵', label: 'Paper In',       color: '#e8a020', desc: 'Client gives paper' },
-  { icon: '🏧', label: 'BB Deposits',    color: '#4080ff', desc: 'BB to our bank' },
+  { icon: '🏧', label: 'Collector Dep.', color: '#4080ff', desc: 'Collector to our bank' },
   { icon: '📤', label: 'Send Supplier',  color: '#a855f7', desc: 'We wire to supplier' },
   { icon: '🔄', label: 'Converting',     color: '#06b6d4', desc: 'Supplier exchanges' },
   { icon: '✅', label: 'Paid Out',       color: '#22c55e', desc: 'Client receives' },
@@ -27,6 +27,8 @@ export function DashboardPage() {
   const { data: stats } = useQuery<DashStats>({ queryKey: ['dash-stats'], queryFn: () => api.get('/dashboard/stats').then(r => r.data) });
   const { data: chart = [] } = useQuery<any[]>({ queryKey: ['dash-chart'], queryFn: () => api.get('/dashboard/chart').then(r => r.data) });
   const { data: rates = [] } = useQuery<any[]>({ queryKey: ['rates'], queryFn: () => api.get('/rates').then(r => r.data) });
+  const { data: accounts = [] } = useQuery<any[]>({ queryKey: ['accounts'], queryFn: () => api.get('/accounts').then(r => r.data) });
+  const { data: customers = [] } = useQuery<any[]>({ queryKey: ['customers'], queryFn: () => api.get('/customers').then(r => r.data) });
   const { data: orders = [] } = useQuery<any[]>({ queryKey: ['orders'], queryFn: () => api.get('/orders').then(r => r.data) });
 
   const refreshMut = useMutation({
@@ -117,7 +119,7 @@ export function DashboardPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
             {[
               { key: 'cash_received', label: 'Paper Received', icon: '💵', color: '#e8a020' },
-              { key: 'bb_deposited', label: 'BB Deposited', icon: '🏧', color: '#4080ff' },
+              { key: 'bb_deposited', label: 'Collector Dep.', icon: '🏧', color: '#4080ff' },
               { key: 'sent_to_supplier', label: 'Sent to Supplier', icon: '📤', color: '#a855f7' },
               { key: 'supplier_converting', label: 'Converting', icon: '🔄', color: '#06b6d4' },
             ].map(stage => {
@@ -167,6 +169,46 @@ export function DashboardPage() {
           </div>
         </Card>
       </div>
+
+      {/* ── Balance Overview ── */}
+      {(accounts as any[]).filter((a: any) => a.active).length > 0 && (() => {
+        const activeAccounts = (accounts as any[]).filter((a: any) => a.active);
+        const byCurrency = activeAccounts.reduce((acc: any, a: any) => {
+          if (!acc[a.currency]) acc[a.currency] = { total: 0, accounts: [] };
+          acc[a.currency].total += parseFloat(a.balance || '0');
+          acc[a.currency].accounts.push(a);
+          return acc;
+        }, {} as Record<string, { total: number; accounts: any[] }>);
+
+        const pendingIn = (orders as any[]).filter((o: any) => ['cash_received', 'bb_deposited'].includes(o.status));
+        const pendingInTotal = pendingIn.reduce((s: number, o: any) => s + parseFloat(o.fromAmount || '0'), 0);
+        const pendingInCurrency = pendingIn[0]?.fromCurrency || 'AUD';
+
+        return (
+          <Card style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>Balance Overview</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+              {Object.entries(byCurrency).map(([cur, data]: [string, any]) => (
+                <div key={cur} style={{ background: 'var(--surface2)', borderRadius: 10, padding: '12px 14px', border: `1px solid ${CURRENCY_COLORS[cur] || 'var(--border)'}22` }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: CURRENCY_COLORS[cur] || 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>🏦 {cur} BANKS</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", color: CURRENCY_COLORS[cur] || 'var(--text)' }}>{fmt(data.total)}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 2 }}>{data.accounts.length} account{data.accounts.length !== 1 ? 's' : ''}</div>
+                </div>
+              ))}
+              <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '12px 14px', border: '1px solid #f59e0b22' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>💵 WITH COLLECTOR</div>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", color: '#f59e0b' }}>{fmt(pendingInTotal)}</div>
+                <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 2 }}>{pendingIn.length} order{pendingIn.length !== 1 ? 's' : ''} in transit ({pendingInCurrency})</div>
+              </div>
+              <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '12px 14px', border: '1px solid #ef444422' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>👥 CLIENTS ({(customers as any[]).length})</div>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", color: 'var(--text)' }}>{(customers as any[]).length}</div>
+                <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 2 }}>registered clients</div>
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* ── Profit chart ── */}
       <Card>

@@ -2,8 +2,8 @@
  * ORDERS — The core workflow page
  * Each order tracks a remittance job through all stages:
  *
- * Stage 1: CASH IN     — Client gives paper → you receive it → record with BB details
- * Stage 2: BB DEPOSIT  — BB collects paper → transfers to your company bank account
+ * Stage 1: CASH IN     — Client gives paper → you receive it → record with Collector details
+ * Stage 2: COLLECTOR DEPOSIT  — Collector collects paper → transfers to your company bank account
  * Stage 3: SEND TO SUPPLIER — You send funds to supplier (AUD → supplier)
  * Stage 4: SUPPLIER CONVERTS — Supplier does the exchange (AUD→USDT or AUD→RMB etc)
  * Stage 5: PAYOUT      — Supplier pays client's bank/wallet
@@ -52,7 +52,7 @@ interface RemittanceOrder {
 
 const STAGES: { status: OrderStatus; label: string; icon: string; color: string; description: string }[] = [
   { status: 'cash_received',       icon: '💵', label: 'Paper Received',      color: '#f59e0b', description: 'Client handed over paper' },
-  { status: 'bb_deposited',        icon: '🏧', label: 'BB Deposited',        color: '#3b82f6', description: 'BB transferred to our account' },
+  { status: 'bb_deposited',        icon: '🏧', label: 'Collector Dep.',        color: '#3b82f6', description: 'Collector transferred to our account' },
   { status: 'sent_to_supplier',    icon: '📤', label: 'Sent to Supplier',    color: '#8b5cf6', description: 'We wired funds to supplier' },
   { status: 'supplier_converting', icon: '🔄', label: 'Supplier Converting', color: '#06b6d4', description: 'Supplier doing the exchange' },
   { status: 'completed',           icon: '✅', label: 'Completed',           color: '#10b981', description: 'Client received funds' },
@@ -140,8 +140,8 @@ function AdvanceStageModal({ order, onClose }: { order: RemittanceOrder; onClose
         {/* Stage-specific fields */}
         {nextStage.status === 'bb_deposited' && (
           <>
-            <Input label="BB Name / Collector" value={bbName} onChange={e => setBbName(e.target.value)} placeholder="Who collected the paper?" />
-            <Input label="BB Deposit Reference" value={bbDepositRef} onChange={e => setBbDepositRef(e.target.value)} placeholder="BB's receipt or transfer ref" />
+            <Input label="Collector Name" value={bbName} onChange={e => setBbName(e.target.value)} placeholder="Who collected the paper?" />
+            <Input label="Collector Reference" value={bbDepositRef} onChange={e => setBbDepositRef(e.target.value)} placeholder="Collector receipt or reference" />
             <Select label={`Deposited into (${order.fromCurrency} account)`} value={inCompanyAccountId} onChange={e => setInCompanyAccountId(e.target.value)}>
               <option value="">— Select company account —</option>
               {(accounts as any[]).filter(a => a.currency === order.fromCurrency && a.active).map((a: any) => (
@@ -379,7 +379,7 @@ function OrderCard({ order, onAdvance }: { order: RemittanceOrder; onAdvance: ()
             {order.supplierRate && <div style={{ color: 'var(--text3)', marginTop: 2 }}>Rate: {parseFloat(order.supplierRate).toFixed(4)}</div>}
           </div>
           <div>
-            <div style={{ color: 'var(--text3)', fontWeight: 600, marginBottom: 4 }}>BB DETAILS</div>
+            <div style={{ color: 'var(--text3)', fontWeight: 600, marginBottom: 4 }}>COLLECTOR DETAILS</div>
             <div>{order.bbName || '—'}</div>
             {order.bbDepositRef && <div style={{ color: 'var(--text3)', marginTop: 2 }}>Ref: {order.bbDepositRef}</div>}
             {order.inCompanyAccountName && <div style={{ color: 'var(--text3)', marginTop: 2 }}>→ {order.inCompanyAccountName}</div>}
@@ -445,7 +445,7 @@ export function OrdersPage() {
             { icon: '→', label: '', sub: '' },
             { icon: '💵', label: 'You', sub: 'receive paper' },
             { icon: '→', label: '', sub: '' },
-            { icon: '🏧', label: 'BB', sub: 'collects & deposits' },
+            { icon: '🏧', label: 'Collector', sub: 'collects & deposits' },
             { icon: '→', label: '', sub: '' },
             { icon: '🏦', label: 'Our Bank', sub: 'receives AUD' },
             { icon: '→', label: '', sub: '' },

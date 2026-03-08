@@ -32,38 +32,54 @@ export const dashRouter = Router();
 dashRouter.use(requireAuth);
 
 dashRouter.get('/stats', async (req, res) => {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  try {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  const allOrders = await db.select().from(exchangeOrders).orderBy(desc(exchangeOrders.createdAt));
-  const todayOrders = allOrders.filter(o => new Date(o.createdAt) >= today);
-  const monthOrders = allOrders.filter(o => new Date(o.createdAt) >= monthStart);
+    // Count remittance orders (paper pipeline)
+    const { sql } = await import('drizzle-orm');
+    const { db } = await import('../db');
 
-  const todayProfit = todayOrders.reduce((s, o) => s + parseFloat(String(o.profit || 0)), 0);
-  const monthProfit = monthOrders.reduce((s, o) => s + parseFloat(String(o.profit || 0)), 0);
+    const remOrders = await db.execute(sql`SELECT created_at, profit FROM remittance_orders WHERE status != 'cancelled'`);
+    const remRows = (remOrders as any).rows || remOrders;
 
-  const allCustomers = await db.select({ id: customers.id }).from(customers);
+    const exchOrders = await db.select().from(exchangeOrders).orderBy(desc(exchangeOrders.createdAt));
 
-  const recentTx = await db.select({
-    id: transactions.id, customerId: transactions.customerId, walletId: transactions.walletId,
-    type: transactions.type, currency: transactions.currency, amount: transactions.amount,
-    balanceAfter: transactions.balanceAfter, note: transactions.note,
-    exchangeOrderId: transactions.exchangeOrderId, createdAt: transactions.createdAt,
-    customerName: customers.name,
-  })
-    .from(transactions)
-    .leftJoin(customers, eq(transactions.customerId, customers.id))
-    .orderBy(desc(transactions.createdAt))
-    .limit(10);
+    const todayExch = exchOrders.filter(o => new Date(o.createdAt) >= today);
+    const monthExch = exchOrders.filter(o => new Date(o.createdAt) >= monthStart);
+    const todayRem = (remRows as any[]).filter((o: any) => new Date(o.created_at) >= today);
+    const monthRem = (remRows as any[]).filter((o: any) => new Date(o.created_at) >= monthStart);
 
-  res.json({
-    todayExchanges: todayOrders.length,
-    todayProfit,
-    monthExchanges: monthOrders.length,
-    monthProfit,
-    totalCustomers: allCustomers.length,
-    recentTransactions: recentTx,
-  });
+    const todayProfit = todayExch.reduce((s, o) => s + parseFloat(String(o.profit || 0)), 0)
+                      + todayRem.reduce((s: number, o: any) => s + parseFloat(String(o.profit || 0)), 0);
+    const monthProfit = monthExch.reduce((s, o) => s + parseFloat(String(o.profit || 0)), 0)
+                      + monthRem.reduce((s: number, o: any) => s + parseFloat(String(o.profit || 0)), 0);
+
+    const allCustomers = await db.select({ id: customers.id }).from(customers);
+
+    const recentTx = await db.select({
+      id: transactions.id, customerId: transactions.customerId, walletId: transactions.walletId,
+      type: transactions.type, currency: transactions.currency, amount: transactions.amount,
+      balanceAfter: transactions.balanceAfter, note: transactions.note,
+      exchangeOrderId: transactions.exchangeOrderId, createdAt: transactions.createdAt,
+      customerName: customers.name,
+    })
+      .from(transactions)
+      .leftJoin(customers, eq(transactions.customerId, customers.id))
+      .orderBy(desc(transactions.createdAt))
+      .limit(10);
+
+    res.json({
+      todayExchanges: todayExch.length + todayRem.length,
+      todayProfit,
+      monthExchanges: monthExch.length + monthRem.length,
+      monthProfit,
+      totalCustomers: allCustomers.length,
+      recentTransactions: recentTx,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message });
+  }
 });
 
 dashRouter.get('/chart', async (req, res) => {
@@ -76,8 +92,8 @@ dashRouter.get('/chart', async (req, res) => {
     const dayOrders = allOrders.filter(o => new Date(o.createdAt) >= d && new Date(o.createdAt) < next);
     result.push({
       date: d.toISOString().split('T')[0],
-      profit: dayOrders.reduce((s, o) => s + parseFloat(o.profit), 0),
-      volume: dayOrders.reduce((s, o) => s + parseFloat(o.fromAmount), 0),
+      profit: dayOrders.reduce((s, o) => s + parseFloat(String(o.profit || 0)), 0),
+      volume: dayOrders.reduce((s, o) => s + parseFloat(String(o.fromAmount || 0)), 0),
       count: dayOrders.length,
     });
   }
