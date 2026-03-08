@@ -26,12 +26,11 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   res => res,
   err => {
-    // Only auto-redirect on 401 if it's NOT from the login endpoint itself
+    // On 401 (not from login itself), clear token - let React re-render handle the redirect
     if (err.response?.status === 401 && !err.config?.url?.includes('/auth/login')) {
       clearToken();
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+      // Don't do window.location.href redirect - that causes hard reload loops
+      // The AuthProvider will set user=null which triggers LoginPage to render
     }
     return Promise.reject(err);
   }
