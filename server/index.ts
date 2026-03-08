@@ -45,7 +45,9 @@ app.use(express.static(distPath, {
     }
   }
 }));
-app.get('/{*path}', (_req, res) => {
+// SPA fallback - only for non-asset, non-api routes
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/assets/')) return next();
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
