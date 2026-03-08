@@ -17,12 +17,17 @@ export function ExchangePage() {
   const [marketRate, setMarketRate] = useState('');      // Live market reference
   const [feeRate, setFeeRate] = useState('0');
   const [supplierId, setSupplierId] = useState('');
+  const [inSettlementMethod, setInSettlementMethod] = useState<'cash'|'bank_transfer'>('cash');
+  const [inCompanyAccountId, setInCompanyAccountId] = useState('');
+  const [outSettlementMethod, setOutSettlementMethod] = useState<'cash'|'bank_transfer'>('bank_transfer');
+  const [outCompanyAccountId, setOutCompanyAccountId] = useState('');
   const [note, setNote] = useState('');
   const [lastEdited, setLastEdited] = useState<'from' | 'to'>('from');
 
   const { data: customers = [] } = useQuery<Customer[]>({ queryKey: ['customers'], queryFn: () => api.get('/customers').then(r => r.data) });
   const { data: suppliers = [] } = useQuery<Supplier[]>({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers').then(r => r.data) });
   const { data: rates = [] } = useQuery<ExchangeRate[]>({ queryKey: ['rates'], queryFn: () => api.get('/rates').then(r => r.data) });
+  const { data: accounts = [] } = useQuery<any[]>({ queryKey: ['accounts'], queryFn: () => api.get('/accounts').then(r => r.data) });
   const { data: wallets = [] } = useQuery<Wallet[]>({
     queryKey: ['customer-wallets', customerId],
     queryFn: () => api.get(`/customers/${customerId}/wallets`).then(r => r.data),
@@ -100,7 +105,11 @@ export function ExchangePage() {
       supplierRate: parseFloat(supplierRate),
       feeRate: parseFloat(feeRate),
       feeAmount,
-      profit: profitInFrom, // store in fromCurrency (AUD) for consistent reporting
+      profit: profitInFrom,
+      inSettlementMethod,
+      inCompanyAccountId: inCompanyAccountId || null,
+      outSettlementMethod,
+      outCompanyAccountId: outCompanyAccountId || null,
       note,
     }),
     onSuccess: () => {
@@ -109,7 +118,7 @@ export function ExchangePage() {
       qc.invalidateQueries({ queryKey: ['dash-stats'] });
       const sign = profitInFrom >= 0 ? '+' : '';
       toast(`Exchange done! Profit: ${sign}${fmt(profitInFrom)} ${fromCurrency}`);
-      setFromAmount(''); setToAmount(''); setNote('');
+      setFromAmount(''); setToAmount(''); setNote(''); setInCompanyAccountId(''); setOutCompanyAccountId('');
     },
     onError: (e: any) => toast(e?.response?.data?.error || 'Exchange failed', 'error'),
   });
@@ -235,6 +244,58 @@ export function ExchangePage() {
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
             {supplierId && <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--gold)' }}>⚠ A PENDING supplier payment will be auto-created</p>}
+          </Card>
+
+          {/* Settlement */}
+          <Card>
+            <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Settlement</h3>
+            <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--text3)' }}>
+              How is money moving in and out? Which company account is involved?
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              {/* Money IN from client */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--blue)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  💰 Client pays us ({fromCurrency})
+                </div>
+                <Select label="Method" value={inSettlementMethod} onChange={e => setInSettlementMethod(e.target.value as any)}>
+                  <option value="cash">💵 Cash</option>
+                  <option value="bank_transfer">🏦 Bank Transfer</option>
+                </Select>
+                {inSettlementMethod === 'bank_transfer' && (
+                  <Select label="Received into account" value={inCompanyAccountId} onChange={e => setInCompanyAccountId(e.target.value)}>
+                    <option value="">— Select account —</option>
+                    {accounts.filter((a: any) => a.currency === fromCurrency && a.active).map((a: any) => (
+                      <option key={a.id} value={a.id}>{a.name} {a.accountNumber ? `(${a.accountNumber})` : ''}</option>
+                    ))}
+                    {accounts.filter((a: any) => a.currency === fromCurrency && a.active).length === 0 && (
+                      <option disabled>No {fromCurrency} accounts — add one in Settings</option>
+                    )}
+                  </Select>
+                )}
+              </div>
+              {/* Money OUT to client */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  📤 We pay client ({toCurrency})
+                </div>
+                <Select label="Method" value={outSettlementMethod} onChange={e => setOutSettlementMethod(e.target.value as any)}>
+                  <option value="cash">💵 Cash</option>
+                  <option value="bank_transfer">🏦 Bank Transfer</option>
+                </Select>
+                {outSettlementMethod === 'bank_transfer' && (
+                  <Select label="Paid from account" value={outCompanyAccountId} onChange={e => setOutCompanyAccountId(e.target.value)}>
+                    <option value="">— Select account —</option>
+                    {accounts.filter((a: any) => a.currency === toCurrency && a.active).map((a: any) => (
+                      <option key={a.id} value={a.id}>{a.name} {a.accountNumber ? `(${a.accountNumber})` : ''}</option>
+                    ))}
+                    {accounts.filter((a: any) => a.currency === toCurrency && a.active).length === 0 && (
+                      <option disabled>No {toCurrency} accounts — add one in Settings</option>
+                    )}
+                  </Select>
+                )}
+              </div>
+            </div>
           </Card>
 
           <Input label="Note (optional)" value={note} onChange={e => setNote(e.target.value)} placeholder="Any additional notes…" />

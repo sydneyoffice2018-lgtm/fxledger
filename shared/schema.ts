@@ -5,6 +5,8 @@ export const roleEnum = pgEnum('role', ['admin', 'operator']);
 export const txTypeEnum = pgEnum('tx_type', ['deposit', 'withdrawal', 'exchange_in', 'exchange_out', 'transfer_in', 'transfer_out']);
 export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'completed', 'cancelled']);
 export const idTypeEnum = pgEnum('id_type', ['passport', 'drivers_license', 'national_id']);
+export const settlementEnum = pgEnum('settlement_method', ['cash', 'bank_transfer']);
+export const settlementDirectionEnum = pgEnum('settlement_direction', ['in', 'out']);
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -40,6 +42,20 @@ export const wallets = pgTable('wallets', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// Your company's own bank accounts
+export const companyAccounts = pgTable('company_accounts', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 200 }).notNull(),          // e.g. "ANZ AUD Main", "WeChat Pay CNY"
+  currency: varchar('currency', { length: 10 }).notNull(),
+  bankName: varchar('bank_name', { length: 200 }),
+  accountNumber: varchar('account_number', { length: 100 }),
+  bsb: varchar('bsb', { length: 20 }),
+  balance: decimal('balance', { precision: 18, scale: 4 }).notNull().default('0'),
+  notes: text('notes'),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 export const transactions = pgTable('transactions', {
   id: serial('id').primaryKey(),
   customerId: integer('customer_id').notNull().references(() => customers.id),
@@ -48,6 +64,11 @@ export const transactions = pgTable('transactions', {
   currency: varchar('currency', { length: 10 }).notNull(),
   amount: decimal('amount', { precision: 18, scale: 4 }).notNull(),
   balanceAfter: decimal('balance_after', { precision: 18, scale: 4 }).notNull(),
+  // How was this settled?
+  settlementMethod: settlementEnum('settlement_method'),    // 'cash' or 'bank_transfer'
+  settlementDirection: settlementDirectionEnum('settlement_direction'), // 'in' (we receive) or 'out' (we pay)
+  // Which company account did the money go to/from?
+  companyAccountId: integer('company_account_id').references(() => companyAccounts.id),
   note: text('note'),
   exchangeOrderId: integer('exchange_order_id'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -91,6 +112,12 @@ export const exchangeOrders = pgTable('exchange_orders', {
   feeRate: decimal('fee_rate', { precision: 8, scale: 4 }).notNull().default('0'),
   feeAmount: decimal('fee_amount', { precision: 18, scale: 4 }).notNull().default('0'),
   profit: decimal('profit', { precision: 18, scale: 4 }).notNull().default('0'),
+  // Settlement for the FROM side (client paying us)
+  inSettlementMethod: settlementEnum('in_settlement_method'),
+  inCompanyAccountId: integer('in_company_account_id').references(() => companyAccounts.id),
+  // Settlement for the TO side (us paying client)
+  outSettlementMethod: settlementEnum('out_settlement_method'),
+  outCompanyAccountId: integer('out_company_account_id').references(() => companyAccounts.id),
   note: text('note'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
@@ -103,6 +130,8 @@ export const supplierPayments = pgTable('supplier_payments', {
   currency: varchar('currency', { length: 10 }).notNull(),
   amount: decimal('amount', { precision: 18, scale: 4 }).notNull(),
   status: paymentStatusEnum('status').notNull().default('pending'),
+  settlementMethod: settlementEnum('settlement_method'),
+  companyAccountId: integer('company_account_id').references(() => companyAccounts.id),
   note: text('note'),
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -124,6 +153,7 @@ export const walletsRelations = relations(wallets, ({ one, many }) => ({
 export const transactionsRelations = relations(transactions, ({ one }) => ({
   customer: one(customers, { fields: [transactions.customerId], references: [customers.id] }),
   wallet: one(wallets, { fields: [transactions.walletId], references: [wallets.id] }),
+  companyAccount: one(companyAccounts, { fields: [transactions.companyAccountId], references: [companyAccounts.id] }),
 }));
 
 export const exchangeOrdersRelations = relations(exchangeOrders, ({ one, many }) => ({
@@ -141,4 +171,8 @@ export const supplierPaymentsRelations = relations(supplierPayments, ({ one }) =
 export const suppliersRelations = relations(suppliers, ({ many }) => ({
   payments: many(supplierPayments),
   orders: many(exchangeOrders),
+}));
+
+export const companyAccountsRelations = relations(companyAccounts, ({ many }) => ({
+  transactions: many(transactions),
 }));

@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { customerId, supplierId, fromCurrency, toCurrency, fromAmount, toAmount, marketRate, ourRate, supplierRate, feeRate, feeAmount, profit, note } = req.body;
+  const { customerId, supplierId, fromCurrency, toCurrency, fromAmount, toAmount, marketRate, ourRate, supplierRate, feeRate, feeAmount, profit, inSettlementMethod, inCompanyAccountId, outSettlementMethod, outCompanyAccountId, note } = req.body;
 
   if (!customerId || !fromCurrency || !toCurrency || !fromAmount || !toAmount) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -62,6 +62,10 @@ router.post('/', async (req, res) => {
     feeRate: parseFloat(feeRate || 0).toFixed(4),
     feeAmount: parseFloat(feeAmount || 0).toFixed(4),
     profit: parseFloat(profit || 0).toFixed(4),
+    inSettlementMethod: inSettlementMethod || null,
+    inCompanyAccountId: inCompanyAccountId ? parseInt(inCompanyAccountId) : null,
+    outSettlementMethod: outSettlementMethod || null,
+    outCompanyAccountId: outCompanyAccountId ? parseInt(outCompanyAccountId) : null,
     note,
   }).returning();
 
@@ -73,6 +77,9 @@ router.post('/', async (req, res) => {
       balanceAfter: newFromBalance.toFixed(4),
       note: `Exchange to ${toCurrency}`,
       exchangeOrderId: order.id,
+      settlementMethod: inSettlementMethod || null,
+      settlementDirection: 'in' as const,
+      companyAccountId: inCompanyAccountId ? parseInt(inCompanyAccountId) : null,
     },
     {
       customerId: parseInt(customerId), walletId: toWallet.id,
@@ -81,6 +88,9 @@ router.post('/', async (req, res) => {
       balanceAfter: newToBalance.toFixed(4),
       note: `Exchange from ${fromCurrency}`,
       exchangeOrderId: order.id,
+      settlementMethod: outSettlementMethod || null,
+      settlementDirection: 'out' as const,
+      companyAccountId: outCompanyAccountId ? parseInt(outCompanyAccountId) : null,
     },
   ]);
 

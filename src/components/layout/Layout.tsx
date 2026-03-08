@@ -3,12 +3,14 @@ import { Link, useRoute } from 'wouter';
 import { useAuth } from '../../hooks/useAuth';
 
 const NAV = [
-  { id: 'dashboard', label: 'Dashboard', icon: '⬡', path: '/' },
-  { id: 'customers', label: 'Customers', icon: '👤', path: '/customers' },
-  { id: 'suppliers', label: 'Suppliers', icon: '🏢', path: '/suppliers' },
-  { id: 'exchange', label: 'Exchange', icon: '⇄', path: '/exchange' },
-  { id: 'transactions', label: 'Transactions', icon: '📋', path: '/transactions' },
-  { id: 'users', label: 'Users', icon: '🔑', path: '/users', adminOnly: true },
+  { id: 'dashboard',    label: 'Dashboard',   icon: '⬡',  path: '/' },
+  { id: 'orders',       label: 'Orders',       icon: '📋', path: '/orders',       badge: 'core' },
+  { id: 'customers',    label: 'Clients',      icon: '👤', path: '/customers' },
+  { id: 'suppliers',    label: 'Suppliers',    icon: '🏢', path: '/suppliers' },
+  { id: 'accounts',     label: 'Our Accounts', icon: '🏦', path: '/accounts' },
+  { id: 'exchange',     label: 'Quick FX',     icon: '⇄',  path: '/exchange' },
+  { id: 'transactions', label: 'Ledger',       icon: '📊', path: '/transactions' },
+  { id: 'users',        label: 'Users',        icon: '🔑', path: '/users', adminOnly: true },
 ];
 
 function NavItem({ item, collapsed }: { item: typeof NAV[0]; collapsed: boolean }) {
@@ -25,7 +27,14 @@ function NavItem({ item, collapsed }: { item: typeof NAV[0]; collapsed: boolean 
         fontWeight: isActive ? 600 : 400,
       }}>
         <span style={{ fontSize: 15, flexShrink: 0, width: 20, textAlign: 'center' }}>{item.icon}</span>
-        {!collapsed && <span style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{item.label}</span>}
+        {!collapsed && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+            <span style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{item.label}</span>
+            {item.badge === 'core' && (
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', background: '#f59e0b20', padding: '1px 5px', borderRadius: 10, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Main</span>
+            )}
+          </div>
+        )}
       </div>
     </Link>
   );
@@ -53,8 +62,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: '10px 8px', overflowY: 'auto' }}>
-          {!collapsed && <div style={{ color: 'var(--text3)', fontSize: 10, letterSpacing: '0.1em', padding: '4px 6px 8px', textTransform: 'uppercase', fontWeight: 600 }}>Navigation</div>}
-          {visibleNav.map(n => <NavItem key={n.id} item={n} collapsed={collapsed} />)}
+          {!collapsed && (
+            <>
+              <div style={{ color: 'var(--text3)', fontSize: 10, letterSpacing: '0.1em', padding: '4px 6px 8px', textTransform: 'uppercase', fontWeight: 600 }}>Workflow</div>
+              <NavItem item={NAV[0]} collapsed={false} />
+              <NavItem item={NAV[1]} collapsed={false} />
+              <div style={{ color: 'var(--text3)', fontSize: 10, letterSpacing: '0.1em', padding: '12px 6px 8px', textTransform: 'uppercase', fontWeight: 600 }}>Records</div>
+              <NavItem item={NAV[2]} collapsed={false} />
+              <NavItem item={NAV[3]} collapsed={false} />
+              <NavItem item={NAV[4]} collapsed={false} />
+              <div style={{ color: 'var(--text3)', fontSize: 10, letterSpacing: '0.1em', padding: '12px 6px 8px', textTransform: 'uppercase', fontWeight: 600 }}>Finance</div>
+              <NavItem item={NAV[5]} collapsed={false} />
+              <NavItem item={NAV[6]} collapsed={false} />
+              {visibleNav.find(n => n.id === 'users') && (
+                <>
+                  <div style={{ color: 'var(--text3)', fontSize: 10, letterSpacing: '0.1em', padding: '12px 6px 8px', textTransform: 'uppercase', fontWeight: 600 }}>Admin</div>
+                  <NavItem item={NAV[7]} collapsed={false} />
+                </>
+              )}
+            </>
+          )}
+          {collapsed && visibleNav.map(n => <NavItem key={n.id} item={n} collapsed={true} />)}
         </nav>
 
         {/* User info */}

@@ -4,9 +4,11 @@ import { Layout } from './components/layout/Layout'
 import { ToastProvider } from './components/ui'
 import { LoginPage } from './pages/Login'
 import { DashboardPage } from './pages/Dashboard'
+import { OrdersPage } from './pages/Orders'
 import { CustomersPage } from './pages/Customers'
 import { SuppliersPage } from './pages/Suppliers'
 import { ExchangePage } from './pages/Exchange'
+import { AccountsPage } from './pages/Accounts'
 import { TransactionsPage, UsersPage } from './pages/Transactions'
 
 function AppRoutes() {
@@ -18,8 +20,10 @@ function AppRoutes() {
     <Layout>
       <Switch>
         <Route path="/" component={DashboardPage} />
+        <Route path="/orders" component={OrdersPage} />
         <Route path="/customers" component={CustomersPage} />
         <Route path="/suppliers" component={SuppliersPage} />
+        <Route path="/accounts" component={AccountsPage} />
         <Route path="/exchange" component={ExchangePage} />
         <Route path="/transactions" component={TransactionsPage} />
         <Route path="/users">{user.role === 'admin' ? <UsersPage /> : <Redirect to="/" />}</Route>
