@@ -83,6 +83,25 @@ export const exchangeRates = pgTable('exchange_rates', {
   fetchedAt: timestamp('fetched_at').notNull().defaultNow(),
 });
 
+
+// BB = Cash collector middlemen (companies or individuals)
+// They physically collect cash from clients and deposit to our bank accounts
+export const cashCollectors = pgTable('cash_collectors', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 200 }).notNull(),          // e.g. "Sydney Cash Express", "Uncle Ben"
+  type: varchar('type', { length: 20 }).notNull().default('company'), // 'company' | 'individual'
+  contact: varchar('contact', { length: 200 }),
+  phone: varchar('phone', { length: 50 }),
+  wechat: varchar('wechat', { length: 100 }),
+  email: varchar('email', { length: 200 }),
+  bankName: varchar('bank_name', { length: 200 }),
+  bankAccount: varchar('bank_account', { length: 100 }),
+  bankBsb: varchar('bank_bsb', { length: 20 }),
+  notes: text('notes'),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 export const suppliers = pgTable('suppliers', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 200 }).notNull(),
@@ -114,6 +133,7 @@ export const exchangeOrders = pgTable('exchange_orders', {
   profit: decimal('profit', { precision: 18, scale: 4 }).notNull().default('0'),
   // Settlement for the FROM side (client paying us)
   inSettlementMethod: settlementEnum('in_settlement_method'),
+  cashCollectorId: integer('cash_collector_id').references(() => cashCollectors.id),
   inCompanyAccountId: integer('in_company_account_id').references(() => companyAccounts.id),
   // Settlement for the TO side (us paying client)
   outSettlementMethod: settlementEnum('out_settlement_method'),
@@ -170,6 +190,10 @@ export const supplierPaymentsRelations = relations(supplierPayments, ({ one }) =
 
 export const suppliersRelations = relations(suppliers, ({ many }) => ({
   payments: many(supplierPayments),
+  orders: many(exchangeOrders),
+}));
+
+export const cashCollectorsRelations = relations(cashCollectors, ({ many }) => ({
   orders: many(exchangeOrders),
 }));
 

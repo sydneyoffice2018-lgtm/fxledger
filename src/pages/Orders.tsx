@@ -2,8 +2,8 @@
  * ORDERS — The core workflow page
  * Each order tracks a remittance job through all stages:
  *
- * Stage 1: CASH IN     — Client gives cash → you receive it → record with BB details
- * Stage 2: BB DEPOSIT  — BB collects cash → transfers to your company bank account
+ * Stage 1: CASH IN     — Client gives paper → you receive it → record with BB details
+ * Stage 2: BB DEPOSIT  — BB collects paper → transfers to your company bank account
  * Stage 3: SEND TO SUPPLIER — You send funds to supplier (AUD → supplier)
  * Stage 4: SUPPLIER CONVERTS — Supplier does the exchange (AUD→USDT or AUD→RMB etc)
  * Stage 5: PAYOUT      — Supplier pays client's bank/wallet
@@ -51,7 +51,7 @@ interface RemittanceOrder {
 // ── Status config ──────────────────────────────────────────────────────────────
 
 const STAGES: { status: OrderStatus; label: string; icon: string; color: string; description: string }[] = [
-  { status: 'cash_received',       icon: '💵', label: 'Cash Received',      color: '#f59e0b', description: 'Client handed over cash' },
+  { status: 'cash_received',       icon: '💵', label: 'Paper Received',      color: '#f59e0b', description: 'Client handed over paper' },
   { status: 'bb_deposited',        icon: '🏧', label: 'BB Deposited',        color: '#3b82f6', description: 'BB transferred to our account' },
   { status: 'sent_to_supplier',    icon: '📤', label: 'Sent to Supplier',    color: '#8b5cf6', description: 'We wired funds to supplier' },
   { status: 'supplier_converting', icon: '🔄', label: 'Supplier Converting', color: '#06b6d4', description: 'Supplier doing the exchange' },
@@ -140,7 +140,7 @@ function AdvanceStageModal({ order, onClose }: { order: RemittanceOrder; onClose
         {/* Stage-specific fields */}
         {nextStage.status === 'bb_deposited' && (
           <>
-            <Input label="BB Name / Collector" value={bbName} onChange={e => setBbName(e.target.value)} placeholder="Who collected the cash?" />
+            <Input label="BB Name / Collector" value={bbName} onChange={e => setBbName(e.target.value)} placeholder="Who collected the paper?" />
             <Input label="BB Deposit Reference" value={bbDepositRef} onChange={e => setBbDepositRef(e.target.value)} placeholder="BB's receipt or transfer ref" />
             <Select label={`Deposited into (${order.fromCurrency} account)`} value={inCompanyAccountId} onChange={e => setInCompanyAccountId(e.target.value)}>
               <option value="">— Select company account —</option>
@@ -165,7 +165,7 @@ function AdvanceStageModal({ order, onClose }: { order: RemittanceOrder; onClose
             <Select label="Payout Method" value={payoutMethod} onChange={e => setPayoutMethod(e.target.value)}>
               <option value="bank_transfer">🏦 Bank Transfer (client's bank account)</option>
               <option value="usdt_wallet">₿ USDT Wallet</option>
-              <option value="cash">💵 Cash Payout</option>
+              <option value="cash">💵 Paper Payout</option>
             </Select>
             {payoutMethod !== 'cash' && (
               <Input
@@ -275,7 +275,7 @@ function NewOrderModal({ onClose }: { onClose: () => void }) {
           <Select label="Payout Method" value={form.payoutMethod} onChange={f('payoutMethod')}>
             <option value="bank_transfer">🏦 Bank Transfer</option>
             <option value="usdt_wallet">₿ USDT Wallet</option>
-            <option value="cash">💵 Cash</option>
+            <option value="cash">💵 Paper</option>
           </Select>
           {form.payoutMethod !== 'cash' && (
             <Input
@@ -386,7 +386,7 @@ function OrderCard({ order, onAdvance }: { order: RemittanceOrder; onAdvance: ()
           </div>
           <div>
             <div style={{ color: 'var(--text3)', fontWeight: 600, marginBottom: 4 }}>PAYOUT</div>
-            <div>{order.payoutMethod === 'bank_transfer' ? '🏦 Bank Transfer' : order.payoutMethod === 'usdt_wallet' ? '₿ USDT' : '💵 Cash'}</div>
+            <div>{order.payoutMethod === 'bank_transfer' ? '🏦 Bank Transfer' : order.payoutMethod === 'usdt_wallet' ? '₿ USDT' : '💵 Paper'}</div>
             {order.payoutDetail && <div style={{ color: 'var(--text3)', marginTop: 2, fontFamily: "'DM Mono',monospace", fontSize: 11 }}>{order.payoutDetail}</div>}
           </div>
           {order.note && (
@@ -441,9 +441,9 @@ export function OrdersPage() {
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Money Flow</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           {[
-            { icon: '👤', label: 'Client', sub: 'gives cash' },
+            { icon: '👤', label: 'Client', sub: 'gives paper' },
             { icon: '→', label: '', sub: '' },
-            { icon: '💵', label: 'You', sub: 'receive cash' },
+            { icon: '💵', label: 'You', sub: 'receive paper' },
             { icon: '→', label: '', sub: '' },
             { icon: '🏧', label: 'BB', sub: 'collects & deposits' },
             { icon: '→', label: '', sub: '' },

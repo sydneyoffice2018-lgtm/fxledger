@@ -149,7 +149,7 @@ export function AccountsPage() {
       <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Account' : 'Add Company Account'}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Input label="Account Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            placeholder="e.g. ANZ AUD Main, WeChat Pay CNY, Cash Drawer AUD" />
+            placeholder="e.g. ANZ AUD Main, WeChat Pay CNY, Paper Drawer AUD" />
           <Select label="Currency *" value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}>
             {CURRENCIES.map(c => <option key={c}>{c}</option>)}
           </Select>

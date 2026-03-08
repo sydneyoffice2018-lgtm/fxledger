@@ -259,7 +259,7 @@ export function ExchangePage() {
                   💰 Client pays us ({fromCurrency})
                 </div>
                 <Select label="Method" value={inSettlementMethod} onChange={e => setInSettlementMethod(e.target.value as any)}>
-                  <option value="cash">💵 Cash</option>
+                  <option value="cash">💵 Paper</option>
                   <option value="bank_transfer">🏦 Bank Transfer</option>
                 </Select>
                 {inSettlementMethod === 'bank_transfer' && (
@@ -280,7 +280,7 @@ export function ExchangePage() {
                   📤 We pay client ({toCurrency})
                 </div>
                 <Select label="Method" value={outSettlementMethod} onChange={e => setOutSettlementMethod(e.target.value as any)}>
-                  <option value="cash">💵 Cash</option>
+                  <option value="cash">💵 Paper</option>
                   <option value="bank_transfer">🏦 Bank Transfer</option>
                 </Select>
                 {outSettlementMethod === 'bank_transfer' && (
