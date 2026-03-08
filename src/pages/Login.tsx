@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { useAuth } from '../hooks/useAuth';
 
 export function LoginPage() {
   const { login } = useAuth();
+  const [, navigate] = useLocation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -14,6 +16,7 @@ export function LoginPage() {
     setError('');
     try {
       await login(username, password);
+      navigate('/');  // ← navigate to dashboard after successful login
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Login failed');
     } finally {

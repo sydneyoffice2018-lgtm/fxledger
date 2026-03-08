@@ -26,7 +26,8 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   res => res,
   err => {
-    if (err.response?.status === 401) {
+    // Only auto-redirect on 401 if it's NOT from the login endpoint itself
+    if (err.response?.status === 401 && !err.config?.url?.includes('/auth/login')) {
       clearToken();
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
