@@ -1,78 +1,97 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
 
 @layer base {
   :root {
-    /* Light base */
-    --bg:        #f4f5f7;
-    --surface:   #ffffff;
-    --surface2:  #f8f9fb;
-    --surface3:  #eef0f4;
-    --border:    #e2e5eb;
-    --border2:   #d0d5de;
+    /* ── Core surfaces ── */
+    --bg:        #0c0e12;
+    --surface:   #13161c;
+    --surface2:  #191d25;
+    --surface3:  #1f2430;
+    --surface4:  #252b38;
 
-    /* Text */
-    --text:      #0f1623;
-    --text2:     #3d4a5c;
-    --text3:     #7a8799;
-    --text4:     #a8b4c0;
+    /* ── Borders ── */
+    --border:    rgba(255,255,255,0.07);
+    --border2:   rgba(255,255,255,0.12);
+    --border3:   rgba(255,255,255,0.18);
 
-    /* Brand — deep navy */
-    --accent:    #1a2f55;
-    --accent2:   #142444;
-    --accent-lt: #e8edf5;
-    --accent-md: #c5d0e6;
+    /* ── Text ── */
+    --text:      #f0f2f7;
+    --text2:     #b8bfcc;
+    --text3:     #6b7585;
+    --text4:     #3e4757;
 
-    /* Semantic */
-    --green:     #0d7a4e;
-    --green-lt:  #e6f6f0;
-    --red:       #c0392b;
-    --red-lt:    #fdf0ee;
-    --gold:      #b45309;
-    --gold-lt:   #fef3e2;
-    --blue:      #1d4ed8;
-    --blue-lt:   #eff3ff;
-    --purple:    #6d28d9;
-    --purple-lt: #f3efff;
-    --cyan:      #0e7490;
-    --cyan-lt:   #ecfeff;
+    /* ── Amber brand accent ── */
+    --accent:    #e8a020;
+    --accent2:   #f0b840;
+    --accent-dim: rgba(232,160,32,0.12);
+    --accent-glow: rgba(232,160,32,0.25);
 
-    /* Shadows */
-    --shadow-sm: 0 1px 3px rgba(15,22,35,0.07), 0 1px 2px rgba(15,22,35,0.04);
-    --shadow-md: 0 4px 12px rgba(15,22,35,0.08), 0 2px 4px rgba(15,22,35,0.04);
-    --shadow-lg: 0 8px 24px rgba(15,22,35,0.1), 0 4px 8px rgba(15,22,35,0.05);
+    /* ── Semantic ── */
+    --green:     #22c55e;
+    --green-dim: rgba(34,197,94,0.1);
+    --red:       #f04060;
+    --red-dim:   rgba(240,64,96,0.1);
+    --blue:      #4080ff;
+    --blue-dim:  rgba(64,128,255,0.1);
+    --purple:    #a855f7;
+    --purple-dim:rgba(168,85,247,0.1);
+    --cyan:      #06b6d4;
+    --cyan-dim:  rgba(6,182,212,0.1);
+    --gold:      #e8a020;
+    --gold-dim:  rgba(232,160,32,0.1);
+
+    /* ── Shadows ── */
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
+    --glow-accent: 0 0 20px rgba(232,160,32,0.15);
   }
 
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
 
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Sora', system-ui, sans-serif;
-    margin: 0;
+    font-family: 'Outfit', system-ui, sans-serif;
     font-size: 14px;
     -webkit-font-smoothing: antialiased;
-  }
-
-  .mono {
-    font-family: 'IBM Plex Mono', monospace;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Scrollbar */
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text4); }
+  ::-webkit-scrollbar-thumb { background: var(--surface4); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border3); }
 
-  /* Input base */
   input, select, textarea {
-    font-family: 'Sora', system-ui, sans-serif;
+    font-family: 'Outfit', system-ui, sans-serif;
     color: var(--text);
   }
 
   select option {
-    background: #ffffff;
+    background: #1f2430;
     color: var(--text);
+  }
+
+  /* Keyframes */
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.5; transform: scale(0.8); }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
   }
 }

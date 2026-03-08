@@ -1,91 +1,165 @@
-import { useQuery } from '@tanstack/react-query';
-import { api, fmt } from '../lib/api';
-import { StatCard, Card, PageHeader } from '../components/ui';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
+import { api, fmt, CURRENCY_COLORS } from '../lib/api';
+import { Card, Mono, toast } from '../components/ui';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface DashStats {
-  todayOrders: number; todayProfit: number;
-  monthOrders: number; monthProfit: number;
-  totalCustomers: number; activeOrders?: number;
+  todayExchanges: number;
+  todayProfit: string | number;
+  monthExchanges: number;
+  monthProfit: string | number;
+  totalCustomers: number;
 }
 
+const FLOW_STEPS = [
+  { icon: '💵', label: 'Paper In',       color: '#e8a020', desc: 'Client gives paper' },
+  { icon: '🏧', label: 'BB Deposits',    color: '#4080ff', desc: 'BB to our bank' },
+  { icon: '📤', label: 'Send Supplier',  color: '#a855f7', desc: 'We wire to supplier' },
+  { icon: '🔄', label: 'Converting',     color: '#06b6d4', desc: 'Supplier exchanges' },
+  { icon: '✅', label: 'Paid Out',       color: '#22c55e', desc: 'Client receives' },
+];
+
 export function DashboardPage() {
-  const { data: stats } = useQuery<DashStats>({ queryKey: ['dash'], queryFn: () => api.get('/transactions/dashboard').then(r => r.data) });
-  const { data: chart = [] } = useQuery<any[]>({ queryKey: ['chart'], queryFn: () => api.get('/transactions/chart').then(r => r.data) });
+  const [, navigate] = useLocation();
+  const qc = useQueryClient();
+
+  const { data: stats } = useQuery<DashStats>({ queryKey: ['dash'], queryFn: () => api.get('/dash').then(r => r.data) });
+  const { data: chart = [] } = useQuery<any[]>({ queryKey: ['chart'], queryFn: () => api.get('/dash/chart').then(r => r.data) });
   const { data: rates = [] } = useQuery<any[]>({ queryKey: ['rates'], queryFn: () => api.get('/rates').then(r => r.data) });
+  const { data: orders = [] } = useQuery<any[]>({ queryKey: ['orders'], queryFn: () => api.get('/orders').then(r => r.data) });
 
-  const today = new Date().toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const monthProfit = stats?.monthProfit ?? 0;
+  const refreshMut = useMutation({
+    mutationFn: () => api.post('/rates/refresh'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rates'] }); toast('Rates refreshed'); },
+  });
 
-  const KEY_PAIRS = [['AUD','CNY'],['AUD','USD'],['AUD','USDT'],['USD','CNY']];
+  const activeOrders = (orders as any[]).filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+  const todayProfit = parseFloat(stats?.todayProfit as string || '0');
+  const monthProfit = parseFloat(stats?.monthProfit as string || '0');
+
+  // Count by stage
+  const stageCounts = {
+    cash_received: activeOrders.filter(o => o.status === 'cash_received').length,
+    bb_deposited: activeOrders.filter(o => o.status === 'bb_deposited').length,
+    sent_to_supplier: activeOrders.filter(o => o.status === 'sent_to_supplier').length,
+    supplier_converting: activeOrders.filter(o => o.status === 'supplier_converting').length,
+  };
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <div>
-      {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>Dashboard</h1>
-        <p style={{ margin: '5px 0 0', color: 'var(--text3)', fontSize: 13 }}>{today}</p>
+    <div style={{ animation: 'fadeUp 0.3s ease' }}>
+
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
+        <div>
+          <div style={{ fontSize: 12, color: 'var(--text4)', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>{dateStr}</div>
+          <h1 style={{ fontSize: 28, fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
+            Overview
+          </h1>
+        </div>
+        <button
+          onClick={() => refreshMut.mutate()}
+          style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 9, padding: '8px 16px', color: 'var(--text3)',
+            cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 500,
+            display: 'flex', alignItems: 'center', gap: 6,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+        >
+          <span style={{ animation: refreshMut.isPending ? 'spin 1s linear infinite' : 'none', display: 'inline-block' }}>⟳</span>
+          Refresh Rates
+        </button>
       </div>
 
-      {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
-        <StatCard label="Today's Orders" value={stats?.todayOrders ?? 0} icon="📋" />
-        <StatCard label="Today's Profit" value={`A$${fmt(stats?.todayProfit ?? 0)}`} color={monthProfit >= 0 ? 'var(--green)' : 'var(--red)'} icon="💰" />
-        <StatCard label="Month Orders" value={stats?.monthOrders ?? 0} icon="📅" />
-        <StatCard label="Month Profit" value={`A$${fmt(monthProfit)}`} color={monthProfit >= 0 ? 'var(--green)' : 'var(--red)'} accent={true} />
+      {/* ── KPI row ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+        {[
+          { label: "Today's Orders", value: stats?.todayExchanges ?? '—', icon: '⟳', color: 'var(--text)' },
+          { label: "Today's Profit", value: `A$${fmt(todayProfit)}`, icon: '◈', color: todayProfit >= 0 ? 'var(--green)' : 'var(--red)' },
+          { label: 'Month Orders', value: stats?.monthExchanges ?? '—', icon: '▦', color: 'var(--text)' },
+          { label: 'Month Profit', value: `A$${fmt(monthProfit)}`, icon: '◉', color: monthProfit >= 0 ? 'var(--green)' : 'var(--red)' },
+        ].map((s, i) => (
+          <div key={i} style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 12, padding: '18px 20px',
+            position: 'relative', overflow: 'hidden',
+          }}>
+            <div style={{ position: 'absolute', right: 16, top: 12, fontSize: 20, opacity: 0.08, color: s.color }}>{s.icon}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>{s.label}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", color: s.color, letterSpacing: '-0.02em' }}>{s.value}</div>
+          </div>
+        ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 18, marginBottom: 18 }}>
-        {/* Profit chart */}
-        <Card>
-          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 18 }}>30-Day Profit Trend</div>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={chart} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="profGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#1a2f55" stopOpacity={0.15} />
-                  <stop offset="100%" stopColor="#1a2f55" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text4)' }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: 'var(--text4)' }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
-              <Tooltip
-                contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12, boxShadow: 'var(--shadow-md)' }}
-                labelStyle={{ color: 'var(--text3)', marginBottom: 4 }}
-                formatter={(v: any) => [`A$${fmt(v)}`, 'Profit']}
-              />
-              <Area type="monotone" dataKey="profit" stroke="#1a2f55" strokeWidth={2} fill="url(#profGrad)" dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </Card>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, marginBottom: 20 }}>
 
-        {/* Live rates */}
+        {/* ── Pipeline ── */}
         <Card>
-          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 14 }}>Live Rates</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {KEY_PAIRS.map(([from, to]) => {
-              const r = (rates as any[]).find(x => x.fromCurrency === from && x.toCurrency === to);
-              if (!r) return null;
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>Active Pipeline</div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>{activeOrders.length} orders in progress</div>
+            </div>
+            <button onClick={() => navigate('/orders')} style={{
+              background: 'var(--accent-dim)', border: '1px solid rgba(232,160,32,0.2)',
+              borderRadius: 8, padding: '6px 14px', color: 'var(--accent)',
+              cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+            }}>
+              View All →
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+            {[
+              { key: 'cash_received', label: 'Paper Received', icon: '💵', color: '#e8a020' },
+              { key: 'bb_deposited', label: 'BB Deposited', icon: '🏧', color: '#4080ff' },
+              { key: 'sent_to_supplier', label: 'Sent to Supplier', icon: '📤', color: '#a855f7' },
+              { key: 'supplier_converting', label: 'Converting', icon: '🔄', color: '#06b6d4' },
+            ].map(stage => {
+              const count = stageCounts[stage.key as keyof typeof stageCounts];
               return (
-                <div key={`${from}${to}`} style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '9px 12px', borderRadius: 9,
-                  background: 'var(--surface2)',
+                <div key={stage.key} style={{
+                  background: 'var(--surface2)', border: `1px solid ${count > 0 ? stage.color + '30' : 'var(--border)'}`,
+                  borderRadius: 10, padding: '14px 12px', textAlign: 'center',
                 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>{from} / {to}</span>
-                  <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>
-                    {parseFloat(r.rate).toFixed(4)}
-                  </span>
+                  <div style={{ fontSize: 20, marginBottom: 6 }}>{stage.icon}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", color: count > 0 ? stage.color : 'var(--text4)' }}>{count}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 4, lineHeight: 1.3 }}>{stage.label}</div>
                 </div>
               );
             })}
-            {(rates as any[]).filter(r => !KEY_PAIRS.some(([f,t]) => r.fromCurrency===f && r.toCurrency===t)).slice(0,4).map((r: any) => (
+          </div>
+        </Card>
+
+        {/* ── Live Rates ── */}
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Live Rates</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--green)' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', animation: 'pulse-dot 2s ease infinite' }} />
+              Live
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {(rates as any[]).slice(0, 7).map((r: any) => (
               <div key={r.id} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '9px 12px', borderRadius: 9, background: 'var(--surface2)',
+                padding: '7px 10px', borderRadius: 7,
+                background: 'var(--surface2)',
               }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>{r.fromCurrency} / {r.toCurrency}</span>
-                <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 13, fontWeight: 600, color: 'var(--text2)' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text3)', fontFamily: "'JetBrains Mono',monospace" }}>
+                  {r.fromCurrency}/{r.toCurrency}
+                </span>
+                <span style={{
+                  fontSize: 13, fontWeight: 700,
+                  fontFamily: "'JetBrains Mono',monospace",
+                  color: CURRENCY_COLORS[r.toCurrency] || 'var(--accent)',
+                }}>
                   {parseFloat(r.rate).toFixed(4)}
                 </span>
               </div>
@@ -94,26 +168,22 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      {/* Bottom row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
-        <StatCard label="Total Clients" value={stats?.totalCustomers ?? 0} icon="👤" />
-        <Card style={{ background: 'linear-gradient(135deg, var(--accent-lt) 0%, var(--surface) 100%)' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Quick Links</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {[['📋 New Order','/orders'],['👤 Add Client','/customers'],['🏢 Suppliers','/suppliers']].map(([l,p]) => (
-              <a key={p} href={p} style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500, textDecoration: 'none', padding: '4px 0' }}>{l} →</a>
-            ))}
-          </div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>System</div>
-          <div style={{ fontSize: 12, color: 'var(--text3)', lineHeight: 1.8 }}>
-            <div>Version <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text)' }}>2.0</span></div>
-            <div>Currency <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: 'var(--text)' }}>AUD Base</span></div>
-            <div>Status <span style={{ color: 'var(--green)', fontWeight: 600 }}>● Online</span></div>
-          </div>
-        </Card>
-      </div>
+      {/* ── Profit chart ── */}
+      <Card>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>30-Day Profit Trend</div>
+        <ResponsiveContainer width="100%" height={160}>
+          <LineChart data={chart as any[]} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+            <XAxis dataKey="date" tick={{ fill: 'var(--text4)', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: 'var(--text4)', fontSize: 10, fontFamily: "'JetBrains Mono'" }} axisLine={false} tickLine={false} width={52} tickFormatter={v => `$${v >= 1000 ? (v/1000).toFixed(0)+'k' : v}`} />
+            <Tooltip
+              contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 8, fontSize: 12 }}
+              labelStyle={{ color: 'var(--text3)' }}
+              formatter={(v: any) => [`A$${fmt(v)}`, 'Profit']}
+            />
+            <Line type="monotone" dataKey="profit" stroke="var(--accent)" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </Card>
     </div>
   );
 }

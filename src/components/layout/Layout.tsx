@@ -1,53 +1,85 @@
-import { Link, useLocation } from 'wouter';
+import { useState } from 'react';
+import { Link, useRoute } from 'wouter';
 import { useAuth } from '../../hooks/useAuth';
 
+// Nav structure: sections with items
 const NAV_SECTIONS = [
   {
     label: 'Workflow',
     items: [
-      { id: 'dashboard', label: 'Dashboard',    icon: '▦', path: '/' },
-      { id: 'orders',    label: 'Orders',        icon: '⟳', path: '/orders', tag: 'MAIN' },
+      { id: 'dashboard', label: 'Overview',     icon: '▦',  path: '/' },
+      { id: 'orders',    label: 'Orders',        icon: '⟳',  path: '/orders', tag: 'MAIN' },
     ]
   },
   {
-    label: 'Records',
+    label: 'Directory',
     items: [
-      { id: 'customers', label: 'Clients',       icon: '◎', path: '/customers' },
-      { id: 'suppliers', label: 'Suppliers',     icon: '◈', path: '/suppliers' },
-      { id: 'accounts',  label: 'Our Accounts',  icon: '⬡', path: '/accounts' },
+      { id: 'customers', label: 'Clients',        icon: '◉', path: '/customers' },
+      { id: 'suppliers', label: 'Suppliers',      icon: '⬡', path: '/suppliers' },
+      { id: 'accounts',  label: 'Our Accounts',   icon: '⬕', path: '/accounts' },
     ]
   },
   {
     label: 'Finance',
     items: [
-      { id: 'exchange',     label: 'Quick FX',   icon: '⇄', path: '/exchange' },
-      { id: 'transactions', label: 'Ledger',     icon: '≡', path: '/transactions' },
+      { id: 'exchange',     label: 'Quick FX',  icon: '⇄', path: '/exchange' },
+      { id: 'transactions', label: 'Ledger',    icon: '≡', path: '/transactions' },
     ]
   },
 ];
 
 const ADMIN_SECTION = {
   label: 'Admin',
-  items: [{ id: 'users', label: 'Users', icon: '◉', path: '/users' }]
+  items: [
+    { id: 'users', label: 'Users', icon: '◈', path: '/users', adminOnly: true },
+  ]
 };
 
-function NavItem({ item, isActive }: { item: { label: string; icon: string; path: string; tag?: string }; isActive: boolean }) {
+function NavItem({ id, label, icon, path, tag, collapsed }: {
+  id: string; label: string; icon: string; path: string;
+  tag?: string; collapsed: boolean;
+}) {
+  const [active] = useRoute(path === '/' ? '/' : path + '{/:rest*}');
+  const isActive = path === '/' ? window.location.pathname === '/' : active;
+
   return (
-    <Link href={item.path}>
+    <Link href={path}>
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px', borderRadius: 9,
-        cursor: 'pointer', marginBottom: 1, transition: 'all 0.12s',
-        background: isActive ? 'var(--accent-lt)' : 'transparent',
-        color: isActive ? 'var(--accent)' : 'var(--text2)',
-        fontWeight: isActive ? 600 : 400,
-        borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: collapsed ? '9px 0' : '8px 10px',
+        borderRadius: 8, cursor: 'pointer', marginBottom: 1,
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        transition: 'all 0.15s',
+        background: isActive ? 'rgba(232,160,32,0.1)' : 'transparent',
+        color: isActive ? 'var(--accent)' : 'var(--text3)',
+        position: 'relative',
       }}>
-        <span style={{ fontSize: 13, flexShrink: 0, width: 18, textAlign: 'center', opacity: isActive ? 1 : 0.6 }}>{item.icon}</span>
-        <span style={{ fontSize: 13, flex: 1, whiteSpace: 'nowrap' }}>{item.label}</span>
-        {item.tag && (
-          <span style={{ fontSize: 9, fontWeight: 800, color: '#b45309', background: '#fef3e2', padding: '1px 6px', borderRadius: 8, letterSpacing: '0.05em' }}>
-            {item.tag}
-          </span>
+        {/* Active indicator bar */}
+        {isActive && !collapsed && (
+          <div style={{
+            position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
+            width: 3, height: 18, background: 'var(--accent)', borderRadius: 2,
+          }} />
+        )}
+        <span style={{
+          fontSize: 14, width: 20, textAlign: 'center', flexShrink: 0,
+          color: isActive ? 'var(--accent)' : 'var(--text3)',
+        }}>
+          {icon}
+        </span>
+        {!collapsed && (
+          <>
+            <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 400, flex: 1, whiteSpace: 'nowrap' }}>
+              {label}
+            </span>
+            {tag && (
+              <span style={{
+                fontSize: 9, fontWeight: 800, letterSpacing: '0.1em',
+                color: 'var(--accent)', background: 'var(--accent-dim)',
+                padding: '2px 6px', borderRadius: 4,
+              }}>{tag}</span>
+            )}
+          </>
         )}
       </div>
     </Link>
@@ -55,104 +87,142 @@ function NavItem({ item, isActive }: { item: { label: string; icon: string; path
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
   const { user, logout } = useAuth();
-  const [location] = useLocation();
 
-  const isActive = (path: string) => path === '/' ? location === '/' : location.startsWith(path);
-
-  const allSections = user?.role === 'admin'
-    ? [...NAV_SECTIONS, ADMIN_SECTION]
-    : NAV_SECTIONS;
+  const w = collapsed ? 56 : 220;
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
-
-      {/* Sidebar */}
+      {/* ── Sidebar ── */}
       <aside style={{
-        width: 220, flexShrink: 0,
+        width: w, flexShrink: 0,
         background: 'var(--surface)',
         borderRight: '1px solid var(--border)',
         display: 'flex', flexDirection: 'column',
-        boxShadow: '2px 0 8px rgba(15,22,35,0.04)',
+        transition: 'width 0.2s cubic-bezier(0.4,0,0.2,1)',
+        overflow: 'hidden',
       }}>
 
         {/* Logo */}
-        <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 34, height: 34,
-              background: 'var(--accent)',
-              borderRadius: 10,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 15, fontWeight: 800, color: '#fff',
-              boxShadow: '0 2px 8px rgba(26,47,85,0.3)',
-              fontFamily: 'IBM Plex Mono, monospace',
-              letterSpacing: '-0.02em',
-            }}>FX</div>
+        <div style={{
+          height: 56, display: 'flex', alignItems: 'center',
+          padding: collapsed ? '0 16px' : '0 16px',
+          borderBottom: '1px solid var(--border)',
+          flexShrink: 0, gap: 10, overflow: 'hidden',
+        }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+            background: 'var(--accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 13, fontWeight: 900, color: '#0c0e12',
+            letterSpacing: '-0.02em',
+          }}>FX</div>
+          {!collapsed && (
             <div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text)', letterSpacing: '-0.02em' }}>FX Ledger</div>
-              <div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 500, letterSpacing: '0.04em' }}>REMITTANCE SYSTEM</div>
+              <div style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace: 'nowrap' }}>FX Ledger</div>
+              <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Remittance System</div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '12px 10px', overflowY: 'auto' }}>
-          {allSections.map(section => (
-            <div key={section.label} style={{ marginBottom: 6 }}>
-              <div style={{
-                fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
-                color: 'var(--text4)', textTransform: 'uppercase',
-                padding: '8px 12px 5px',
-              }}>
-                {section.label}
-              </div>
+        <nav style={{ flex: 1, overflowY: 'auto', padding: collapsed ? '12px 8px' : '12px 10px' }}>
+          {NAV_SECTIONS.map(section => (
+            <div key={section.label} style={{ marginBottom: 16 }}>
+              {!collapsed && (
+                <div style={{
+                  fontSize: 10, fontWeight: 700, color: 'var(--text4)',
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  padding: '0 10px 6px',
+                }}>
+                  {section.label}
+                </div>
+              )}
               {section.items.map(item => (
-                <NavItem key={item.id} item={item} isActive={isActive(item.path)} />
+                <NavItem key={item.id} {...item} collapsed={collapsed} />
               ))}
             </div>
           ))}
+
+          {user?.role === 'admin' && (
+            <div style={{ marginBottom: 16 }}>
+              {!collapsed && (
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '0 10px 6px' }}>
+                  Admin
+                </div>
+              )}
+              {ADMIN_SECTION.items.map(item => (
+                <NavItem key={item.id} {...item} collapsed={collapsed} />
+              ))}
+            </div>
+          )}
         </nav>
 
-        {/* User */}
-        <div style={{ borderTop: '1px solid var(--border)', padding: 10 }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '8px 10px', marginBottom: 6, borderRadius: 9,
-            background: 'var(--surface2)',
-          }}>
+        {/* User + logout */}
+        <div style={{ borderTop: '1px solid var(--border)', padding: collapsed ? '10px 8px' : '10px' }}>
+          {!collapsed && (
             <div style={{
-              width: 28, height: 28, borderRadius: '50%',
-              background: 'var(--accent-lt)', color: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 700, flexShrink: 0,
+              padding: '8px 10px 10px',
+              display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              {user?.username?.[0]?.toUpperCase()}
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                background: 'var(--accent-dim)',
+                border: '1px solid rgba(232,160,32,0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, fontWeight: 700, color: 'var(--accent)',
+              }}>
+                {user?.username?.[0]?.toUpperCase()}
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', lineHeight: 1.2 }}>{user?.username}</div>
+                <div style={{ fontSize: 10, color: 'var(--text4)', textTransform: 'capitalize', letterSpacing: '0.04em' }}>{user?.role}</div>
+              </div>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.username}</div>
-              <div style={{ fontSize: 10, color: 'var(--text4)', textTransform: 'capitalize', fontWeight: 500 }}>{user?.role}</div>
-            </div>
-          </div>
-          <button onClick={() => { logout(); window.location.href = '/login'; }}
+          )}
+          <button
+            onClick={() => { logout(); window.location.href = '/'; }}
             style={{
               width: '100%', background: 'transparent',
-              border: '1px solid var(--border)', borderRadius: 8,
-              padding: '7px 12px', color: 'var(--text3)',
-              cursor: 'pointer', fontSize: 12,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              fontFamily: 'inherit', fontWeight: 500, transition: 'all 0.12s',
+              border: '1px solid var(--border)',
+              borderRadius: 8, padding: collapsed ? '8px' : '7px 10px',
+              color: 'var(--text3)', cursor: 'pointer', fontSize: 12,
+              display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
+              gap: 7, fontFamily: 'inherit', transition: 'all 0.15s',
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface3)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text3)'; }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border2)'; (e.currentTarget as HTMLElement).style.color = 'var(--text2)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text3)'; }}
           >
-            <span>↩</span> Sign Out
+            <span style={{ fontSize: 13 }}>↩</span>
+            {!collapsed && <span>Sign Out</span>}
           </button>
         </div>
+
+        {/* Collapse button */}
+        <button
+          onClick={() => setCollapsed(c => !c)}
+          style={{
+            background: 'none', border: 'none',
+            borderTop: '1px solid var(--border)',
+            color: 'var(--text4)', cursor: 'pointer',
+            padding: '8px', fontSize: 11,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'color 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--text3)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}
+        >
+          {collapsed ? '▸' : '◂'}
+        </button>
       </aside>
 
-      {/* Main content */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: '32px 36px', background: 'var(--bg)' }}>
+      {/* ── Main content ── */}
+      <main style={{
+        flex: 1, overflowY: 'auto',
+        padding: '32px 36px',
+        background: 'var(--bg)',
+      }}>
         {children}
       </main>
     </div>

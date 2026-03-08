@@ -2,21 +2,35 @@ import React from 'react';
 import { CURRENCY_COLORS } from '../../lib/api';
 
 // ── Card ──────────────────────────────────────────────────────────────────────
-export function Card({ children, className = '', style, onClick }: {
+export function Card({ children, className = '', style, onClick, accent }: {
   children: React.ReactNode; className?: string;
   style?: React.CSSProperties; onClick?: () => void;
+  accent?: boolean;
 }) {
   return (
     <div className={className} onClick={onClick} style={{
-      background: 'var(--surface)', border: '1px solid var(--border)',
-      borderRadius: 14, padding: 20,
-      boxShadow: 'var(--shadow-sm)',
+      background: 'var(--surface)',
+      border: `1px solid ${accent ? 'rgba(232,160,32,0.3)' : 'var(--border)'}`,
+      borderRadius: 12,
+      padding: 20,
+      boxShadow: accent ? 'var(--glow-accent)' : 'var(--shadow-sm)',
       cursor: onClick ? 'pointer' : undefined,
-      transition: onClick ? 'box-shadow 0.15s, transform 0.1s' : undefined,
+      transition: 'all 0.2s',
+      animation: 'fadeUp 0.3s ease both',
       ...style
     }}
-    onMouseEnter={onClick ? e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; } : undefined}
-    onMouseLeave={onClick ? e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; } : undefined}
+    onMouseEnter={onClick ? e => {
+      const el = e.currentTarget as HTMLElement;
+      el.style.borderColor = 'var(--border2)';
+      el.style.transform = 'translateY(-2px)';
+      el.style.boxShadow = 'var(--shadow-md)';
+    } : undefined}
+    onMouseLeave={onClick ? e => {
+      const el = e.currentTarget as HTMLElement;
+      el.style.borderColor = 'var(--border)';
+      el.style.transform = 'translateY(0)';
+      el.style.boxShadow = 'var(--shadow-sm)';
+    } : undefined}
     >
       {children}
     </div>
@@ -31,25 +45,36 @@ interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 export function Btn({ children, variant = 'primary', size = 'md', loading, ...props }: BtnProps) {
   const vars: Record<string, React.CSSProperties> = {
-    primary:   { background: 'var(--accent)',  color: '#fff',            border: 'none', boxShadow: '0 2px 8px rgba(26,47,85,0.25)' },
-    secondary: { background: 'var(--surface)', color: 'var(--text2)',    border: '1px solid var(--border2)' },
-    danger:    { background: 'var(--red-lt)',  color: 'var(--red)',       border: '1px solid #f5c6c2' },
-    ghost:     { background: 'transparent',    color: 'var(--text3)',     border: 'none' },
-    success:   { background: 'var(--green-lt)',color: 'var(--green)',     border: '1px solid #b7e4d0' },
-    gold:      { background: 'var(--gold-lt)', color: 'var(--gold)',      border: '1px solid #f9d79a' },
+    primary:   { background: 'var(--accent)', color: '#0c0e12', border: 'none', fontWeight: 700 },
+    secondary: { background: 'var(--surface2)', color: 'var(--text2)', border: '1px solid var(--border2)' },
+    danger:    { background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid rgba(240,64,96,0.3)' },
+    ghost:     { background: 'transparent', color: 'var(--text3)', border: 'none' },
+    success:   { background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid rgba(34,197,94,0.3)' },
+    gold:      { background: 'var(--accent-dim)', color: 'var(--accent)', border: '1px solid rgba(232,160,32,0.3)' },
   };
   const sizes: Record<string, React.CSSProperties> = {
-    sm: { padding: '5px 12px', fontSize: 12, borderRadius: 7 },
-    md: { padding: '8px 18px', fontSize: 13, borderRadius: 9 },
-    lg: { padding: '12px 28px', fontSize: 14, borderRadius: 10 },
+    sm: { padding: '4px 12px', fontSize: 12, borderRadius: 7, height: 28 },
+    md: { padding: '8px 18px', fontSize: 13, borderRadius: 9, height: 36 },
+    lg: { padding: '11px 28px', fontSize: 14, borderRadius: 10, height: 44 },
   };
   return (
     <button {...props}
-      style={{ ...vars[variant], ...sizes[size], fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'all 0.15s', opacity: (props.disabled || loading) ? 0.5 : 1, fontFamily: 'inherit', ...props.style }}
-      onMouseEnter={e => { if (!props.disabled && !loading) (e.currentTarget as HTMLElement).style.filter = 'brightness(0.93)'; }}
+      style={{
+        ...vars[variant], ...sizes[size],
+        fontWeight: 600, cursor: 'pointer',
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        transition: 'all 0.15s',
+        opacity: (props.disabled || loading) ? 0.4 : 1,
+        fontFamily: 'inherit',
+        letterSpacing: variant === 'primary' ? '0.01em' : undefined,
+        ...props.style,
+      }}
+      onMouseEnter={e => { if (!props.disabled && !loading) (e.currentTarget as HTMLElement).style.filter = 'brightness(1.1)'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = ''; }}
     >
-      {loading ? <span style={{ display: 'inline-block', width: 13, height: 13, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : children}
+      {loading
+        ? <span style={{ display:'inline-block', width:13, height:13, border:'2px solid currentColor', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.7s linear infinite' }} />
+        : children}
     </button>
   );
 }
@@ -60,20 +85,25 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 export function Input({ label, error, ...props }: InputProps) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      {label && <label style={{ display: 'block', color: 'var(--text2)', fontSize: 11, marginBottom: 5, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{label}</label>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {label && (
+        <label style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          {label}
+        </label>
+      )}
       <input {...props} style={{
-        width: '100%', background: 'var(--surface)',
-        border: `1.5px solid ${error ? 'var(--red)' : 'var(--border)'}`,
-        borderRadius: 9, padding: '9px 13px',
+        width: '100%',
+        background: 'var(--surface2)',
+        border: `1px solid ${error ? 'var(--red)' : 'var(--border)'}`,
+        borderRadius: 8, padding: '9px 12px',
         color: 'var(--text)', fontSize: 14,
         outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s',
         ...props.style
       }}
-      onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,47,85,0.08)'; }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-glow)'; }}
       onBlur={e => { e.currentTarget.style.borderColor = error ? 'var(--red)' : 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
       />
-      {error && <p style={{ color: 'var(--red)', fontSize: 11, marginTop: 4, margin: '4px 0 0' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--red)', fontSize: 11, marginTop: 2 }}>{error}</p>}
     </div>
   );
 }
@@ -84,21 +114,25 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 export function Select({ label, children, ...props }: SelectProps) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      {label && <label style={{ display: 'block', color: 'var(--text2)', fontSize: 11, marginBottom: 5, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{label}</label>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {label && (
+        <label style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          {label}
+        </label>
+      )}
       <select {...props} style={{
-        width: '100%', background: 'var(--surface)',
-        border: '1.5px solid var(--border)',
-        borderRadius: 9, padding: '9px 13px',
+        width: '100%', background: 'var(--surface2)',
+        border: '1px solid var(--border)',
+        borderRadius: 8, padding: '9px 12px',
         color: 'var(--text)', fontSize: 14,
         outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s',
         appearance: 'none', cursor: 'pointer',
-        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a8799' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-        backgroundRepeat: 'no-repeat', backgroundPosition: 'right 13px center',
-        paddingRight: 36,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%236b7585' d='M5 7L0.67 2h8.66z'/%3E%3C/svg%3E")`,
+        backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center',
+        paddingRight: 32,
         ...props.style
       }}
-      onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,47,85,0.08)'; }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-glow)'; }}
       onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
       >
         {children}
@@ -113,203 +147,277 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 }
 export function Textarea({ label, ...props }: TextareaProps) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      {label && <label style={{ display: 'block', color: 'var(--text2)', fontSize: 11, marginBottom: 5, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{label}</label>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {label && <label style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</label>}
       <textarea {...props} rows={3} style={{
-        width: '100%', background: 'var(--surface)',
-        border: '1.5px solid var(--border)',
-        borderRadius: 9, padding: '9px 13px',
-        color: 'var(--text)', fontSize: 14,
-        outline: 'none', resize: 'vertical',
-        transition: 'border-color 0.15s',
+        width: '100%', background: 'var(--surface2)',
+        border: '1px solid var(--border)',
+        borderRadius: 8, padding: '9px 12px',
+        color: 'var(--text)', fontSize: 14, resize: 'vertical',
+        outline: 'none', transition: 'border-color 0.15s',
+        fontFamily: 'inherit',
         ...props.style
       }}
-      onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,47,85,0.08)'; }}
-      onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+      onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
       />
     </div>
   );
 }
 
-// ── Modal ─────────────────────────────────────────────────────────────────────
-export function Modal({ title, onClose, children, width = 540, wide }: {
-  title: string; onClose: () => void; children: React.ReactNode; width?: number; wide?: boolean;
-}) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,22,35,0.4)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{
-        background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: 18, padding: 32,
-        width: '100%', maxWidth: wide ? 800 : width,
-        maxHeight: '90vh', overflowY: 'auto',
-        boxShadow: 'var(--shadow-lg)',
-        animation: 'modal-in 0.2s ease-out',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{title}</h2>
-          <button onClick={onClose} style={{
-            background: 'var(--surface3)', border: 'none', color: 'var(--text3)',
-            width: 30, height: 30, borderRadius: '50%', cursor: 'pointer',
-            fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>×</button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-// ── TxBadge ───────────────────────────────────────────────────────────────────
-const txBadge: Record<string, { bg: string; color: string; label: string }> = {
-  deposit:      { bg: 'var(--green-lt)', color: 'var(--green)',   label: 'DEPOSIT' },
-  withdrawal:   { bg: 'var(--red-lt)',   color: 'var(--red)',     label: 'WITHDRAW' },
-  exchange_in:  { bg: 'var(--blue-lt)',  color: 'var(--blue)',    label: 'EXCH IN' },
-  exchange_out: { bg: 'var(--gold-lt)',  color: 'var(--gold)',    label: 'EXCH OUT' },
-  transfer_in:  { bg: 'var(--cyan-lt)',  color: 'var(--cyan)',    label: 'TRANSFER IN' },
-  transfer_out: { bg: 'var(--purple-lt)',color: 'var(--purple)',  label: 'TRANSFER OUT' },
-  pending:      { bg: 'var(--gold-lt)',  color: 'var(--gold)',    label: 'PENDING' },
-  completed:    { bg: 'var(--green-lt)', color: 'var(--green)',   label: 'COMPLETED' },
-  cancelled:    { bg: 'var(--surface3)', color: 'var(--text3)',   label: 'CANCELLED' },
-};
-export function TxBadge({ type }: { type: string }) {
-  const s = txBadge[type] || { bg: 'var(--surface3)', color: 'var(--text3)', label: type.toUpperCase() };
-  return <span style={{ background: s.bg, color: s.color, padding: '3px 9px', borderRadius: 6, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{s.label}</span>;
-}
-
-// ── CurrencyPill ──────────────────────────────────────────────────────────────
-export function CurrencyPill({ currency }: { currency: string }) {
-  return <span style={{ color: CURRENCY_COLORS[currency] || 'var(--text3)', fontWeight: 700, fontSize: 12, letterSpacing: '0.05em', fontFamily: 'IBM Plex Mono, monospace' }}>{currency}</span>;
-}
-
-// ── StatCard ──────────────────────────────────────────────────────────────────
-export function StatCard({ label, value, sub, color, icon, accent }: {
-  label: string; value: string | number; sub?: string; color?: string; icon?: string; accent?: boolean;
-}) {
-  return (
-    <Card style={accent ? { background: 'var(--accent)', border: 'none', boxShadow: '0 4px 16px rgba(26,47,85,0.2)' } : {}}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ color: accent ? 'rgba(255,255,255,0.65)' : 'var(--text3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, fontWeight: 600 }}>{label}</div>
-          <div style={{ color: color || (accent ? '#fff' : 'var(--text)'), fontSize: 26, fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace', lineHeight: 1 }}>{value}</div>
-          {sub && <div style={{ color: accent ? 'rgba(255,255,255,0.55)' : 'var(--text3)', fontSize: 12, marginTop: 6 }}>{sub}</div>}
-        </div>
-        {icon && <span style={{ fontSize: 24, opacity: 0.35 }}>{icon}</span>}
-      </div>
-    </Card>
-  );
-}
-
 // ── PageHeader ────────────────────────────────────────────────────────────────
-export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
+export function PageHeader({ title, subtitle, action }: {
+  title: string; subtitle?: string; action?: React.ReactNode;
+}) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
       <div>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>{title}</h1>
-        {subtitle && <p style={{ margin: '5px 0 0', color: 'var(--text3)', fontSize: 13 }}>{subtitle}</p>}
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em', margin: 0, lineHeight: 1.2 }}>{title}</h1>
+        {subtitle && <p style={{ color: 'var(--text3)', fontSize: 13, marginTop: 4, fontWeight: 400 }}>{subtitle}</p>}
       </div>
-      {action && <div>{action}</div>}
+      {action && <div style={{ flexShrink: 0 }}>{action}</div>}
     </div>
   );
 }
 
-// ── Divider ───────────────────────────────────────────────────────────────────
-export function Divider({ label }: { label?: string }) {
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+export function StatCard({ label, value, sub, color, icon }: {
+  label: string; value: string | number; sub?: string;
+  color?: string; icon?: string;
+}) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0 16px' }}>
-      <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-      {label && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>}
-      <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+    <div style={{
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderRadius: 12, padding: '18px 20px',
+      position: 'relative', overflow: 'hidden',
+    }}>
+      {icon && (
+        <div style={{ position: 'absolute', right: 16, top: 14, fontSize: 22, opacity: 0.15 }}>{icon}</div>
+      )}
+      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", color: color || 'var(--text)', letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6 }}>{sub}</div>}
     </div>
   );
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
-interface ToastItem { id: number; msg: string; type: 'success' | 'error' | 'info' }
-let _setToasts: React.Dispatch<React.SetStateAction<ToastItem[]>> | null = null;
-export function toast(msg: string, type: 'success' | 'error' | 'info' = 'success') {
-  const id = Date.now();
-  _setToasts?.(t => [...t, { id, msg, type }]);
-  setTimeout(() => _setToasts?.(t => t.filter(x => x.id !== id)), 3200);
-}
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = React.useState<ToastItem[]>([]);
-  _setToasts = setToasts;
-  const colors = { success: { bg: 'var(--green-lt)', border: '#b7e4d0', color: 'var(--green)', icon: '✓' }, error: { bg: 'var(--red-lt)', border: '#f5c6c2', color: 'var(--red)', icon: '✕' }, info: { bg: 'var(--blue-lt)', border: '#bfcfff', color: 'var(--blue)', icon: 'ℹ' } };
+// ── Badge ─────────────────────────────────────────────────────────────────────
+export function Badge({ children, color = 'var(--text3)', bg = 'var(--surface3)' }: {
+  children: React.ReactNode; color?: string; bg?: string;
+}) {
   return (
-    <>
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+      color, background: bg, padding: '3px 9px', borderRadius: 20,
+      textTransform: 'uppercase', whiteSpace: 'nowrap',
+    }}>
       {children}
-      <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {toasts.map(t => {
-          const c = colors[t.type];
-          return (
-            <div key={t.id} style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.color, padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', gap: 8, animation: 'slide-in 0.2s ease-out' }}>
-              <span>{c.icon}</span> {t.msg}
-            </div>
-          );
-        })}
-      </div>
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes modal-in { from { opacity:0; transform: scale(0.96) translateY(8px); } to { opacity:1; transform: scale(1) translateY(0); } }
-        @keyframes slide-in { from { opacity:0; transform: translateX(16px); } to { opacity:1; transform: translateX(0); } }
-      `}</style>
-    </>
+    </span>
   );
 }
 
-// ── Table helpers ─────────────────────────────────────────────────────────────
-export function Table({ children, headers }: { children: React.ReactNode; headers: string[] }) {
+// ── Table ─────────────────────────────────────────────────────────────────────
+export function Table({ headers, children, empty }: {
+  headers: string[]; children: React.ReactNode; empty?: string;
+}) {
   return (
-    <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid var(--border)' }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
-          <tr style={{ background: 'var(--surface2)', borderBottom: '1px solid var(--border)' }}>
+          <tr style={{ borderBottom: '1px solid var(--border)' }}>
             {headers.map(h => (
-              <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>{h}</th>
+              <th key={h} style={{
+                padding: '11px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700,
+                color: 'var(--text3)', letterSpacing: '0.08em', textTransform: 'uppercase',
+                background: 'var(--surface2)',
+              }}>{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>{children}</tbody>
       </table>
+      {empty && (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text4)', fontSize: 13 }}>{empty}</div>
+      )}
     </div>
   );
 }
 
-export function Tr({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+export function TR({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
   return (
     <tr onClick={onClick} style={{
-      borderBottom: '1px solid var(--border)', cursor: onClick ? 'pointer' : undefined, transition: 'background 0.1s',
+      borderBottom: '1px solid var(--border)',
+      cursor: onClick ? 'pointer' : undefined,
+      transition: 'background 0.12s',
     }}
     onMouseEnter={e => { if (onClick) (e.currentTarget as HTMLElement).style.background = 'var(--surface2)'; }}
-    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; }}
+    onMouseLeave={e => { if (onClick) (e.currentTarget as HTMLElement).style.background = ''; }}
     >
       {children}
     </tr>
   );
 }
 
-export function Td({ children, style }: { children?: React.ReactNode; style?: React.CSSProperties }) {
-  return <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', verticalAlign: 'middle', ...style }}>{children}</td>;
+export function TD({ children, mono, right, muted, style }: {
+  children: React.ReactNode; mono?: boolean; right?: boolean; muted?: boolean;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <td style={{
+      padding: '12px 16px', fontSize: 13,
+      fontFamily: mono ? "'JetBrains Mono',monospace" : undefined,
+      textAlign: right ? 'right' : 'left',
+      color: muted ? 'var(--text3)' : 'var(--text)',
+      ...style
+    }}>
+      {children}
+    </td>
+  );
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-export function Empty({ icon = '📭', title, message, action }: { icon?: string; title: string; message?: string; action?: React.ReactNode }) {
+// ── Modal ─────────────────────────────────────────────────────────────────────
+export function Modal({ open, onClose, title, children, wide }: {
+  open: boolean; onClose: () => void;
+  title: string; children: React.ReactNode; wide?: boolean;
+}) {
+  if (!open) return null;
   return (
-    <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text3)' }}>
-      <div style={{ fontSize: 40, marginBottom: 14, opacity: 0.5 }}>{icon}</div>
-      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: 'var(--text2)' }}>{title}</div>
-      {message && <div style={{ fontSize: 13, marginBottom: 20, maxWidth: 320, margin: '0 auto 20px' }}>{message}</div>}
-      {action}
+    <div
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'rgba(0,0,0,0.7)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        animation: 'fadeUp 0.15s ease',
+      }}
+    >
+      <div style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border2)',
+        borderRadius: 14, width: '100%',
+        maxWidth: wide ? 780 : 520,
+        maxHeight: '90vh', overflowY: 'auto',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '16px 20px', borderBottom: '1px solid var(--border)',
+        }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--text)' }}>{title}</h2>
+          <button onClick={onClose} style={{
+            background: 'var(--surface2)', border: '1px solid var(--border)',
+            borderRadius: 7, width: 30, height: 30, cursor: 'pointer',
+            color: 'var(--text3)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>×</button>
+        </div>
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
 
-// ── Spinner ───────────────────────────────────────────────────────────────────
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _toastFn: ((msg: string, type?: 'success' | 'error' | 'info') => void) | null = null;
+export function toast(msg: string, type: 'success' | 'error' | 'info' = 'success') {
+  _toastFn?.(msg, type);
+}
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [toasts, setToasts] = React.useState<{ id: number; msg: string; type: string }[]>([]);
+  _toastFn = (msg, type = 'success') => {
+    const id = Date.now();
+    setToasts(t => [...t, { id, msg, type }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3000);
+  };
+  const colors: Record<string, string> = { success: 'var(--green)', error: 'var(--red)', info: 'var(--blue)' };
+  return (
+    <>
+      {children}
+      <div style={{ position: 'fixed', bottom: 20, right: 20, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 9999 }}>
+        {toasts.map(t => (
+          <div key={t.id} style={{
+            background: 'var(--surface2)', border: `1px solid ${colors[t.type]}40`,
+            borderLeft: `3px solid ${colors[t.type]}`,
+            borderRadius: 9, padding: '10px 16px',
+            fontSize: 13, fontWeight: 500,
+            boxShadow: 'var(--shadow-lg)',
+            animation: 'fadeUp 0.2s ease',
+            color: 'var(--text)',
+          }}>{t.msg}</div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ── Mono number ───────────────────────────────────────────────────────────────
+export function Mono({ children, color, size }: { children: React.ReactNode; color?: string; size?: number }) {
+  return (
+    <span style={{ fontFamily: "'JetBrains Mono',monospace", color: color || 'var(--text)', fontSize: size, fontWeight: 500 }}>
+      {children}
+    </span>
+  );
+}
+
+// ── Section label ─────────────────────────────────────────────────────────────
+export function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '6px 0 8px' }}>
+      {children}
+    </div>
+  );
+}
+
+// ── Legacy aliases (used by Customers, Transactions, Exchange pages) ──────────
+export function CurrencyPill({ currency }: { currency: string }) {
+  const c = CURRENCY_COLORS[currency] || 'var(--text3)';
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center',
+      fontSize: 11, fontWeight: 700,
+      color: c, background: c + '18',
+      border: `1px solid ${c}30`,
+      padding: '2px 8px', borderRadius: 12,
+      letterSpacing: '0.04em',
+    }}>{currency}</span>
+  );
+}
+
+export function TxBadge({ type }: { type: string }) {
+  const map: Record<string, { label: string; color: string }> = {
+    deposit:     { label: 'Deposit',    color: 'var(--green)' },
+    withdrawal:  { label: 'Withdrawal', color: 'var(--red)' },
+    exchange_in: { label: 'FX In',      color: 'var(--blue)' },
+    exchange_out:{ label: 'FX Out',     color: 'var(--purple)' },
+    transfer_in: { label: 'Xfer In',    color: 'var(--cyan)' },
+    transfer_out:{ label: 'Xfer Out',   color: 'var(--accent)' },
+  };
+  const s = map[type] || { label: type, color: 'var(--text3)' };
+  return <Badge color={s.color}>{s.label}</Badge>;
+}
+
+export function Empty({ icon = '◯', text }: { icon?: string; text: string }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text4)' }}>
+      <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.4 }}>{icon}</div>
+      <div style={{ fontSize: 13 }}>{text}</div>
+    </div>
+  );
+}
+
 export function Spinner() {
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-      <div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+      <div style={{ width: 24, height: 24, border: '2px solid var(--border2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
     </div>
   );
 }
+
+// Old Table/Tr/Td aliases
+export const Tr = TR;
+export const Td = TD;
