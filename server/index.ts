@@ -53,9 +53,10 @@ app.use((err: any, req: any, res: any, next: any) => {
   }
 });
 
-// SPA fallback - only for non-asset, non-api routes
-app.get('*', (req, res, next) => {
+// SPA fallback - serve index.html for all non-api, non-asset routes
+app.use((req, res, next) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/assets/')) return next();
+  if (req.method !== 'GET') return next();
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
