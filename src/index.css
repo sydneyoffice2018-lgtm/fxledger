@@ -1,26 +1,78 @@
 @import "tailwindcss";
 
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
 @layer base {
   :root {
-    --bg: #0a0c12;
-    --surface: #111520;
-    --surface2: #161b28;
-    --border: #1e2433;
-    --border2: #252d3d;
-    --text: #e2e8f0;
-    --text2: #94a3b8;
-    --text3: #64748b;
-    --accent: #3b82f6;
-    --accent2: #2563eb;
-    --green: #22c55e;
-    --red: #ef4444;
-    --gold: #f59e0b;
-    --purple: #a78bfa;
-    --cyan: #06b6d4;
+    /* Light base */
+    --bg:        #f4f5f7;
+    --surface:   #ffffff;
+    --surface2:  #f8f9fb;
+    --surface3:  #eef0f4;
+    --border:    #e2e5eb;
+    --border2:   #d0d5de;
+
+    /* Text */
+    --text:      #0f1623;
+    --text2:     #3d4a5c;
+    --text3:     #7a8799;
+    --text4:     #a8b4c0;
+
+    /* Brand — deep navy */
+    --accent:    #1a2f55;
+    --accent2:   #142444;
+    --accent-lt: #e8edf5;
+    --accent-md: #c5d0e6;
+
+    /* Semantic */
+    --green:     #0d7a4e;
+    --green-lt:  #e6f6f0;
+    --red:       #c0392b;
+    --red-lt:    #fdf0ee;
+    --gold:      #b45309;
+    --gold-lt:   #fef3e2;
+    --blue:      #1d4ed8;
+    --blue-lt:   #eff3ff;
+    --purple:    #6d28d9;
+    --purple-lt: #f3efff;
+    --cyan:      #0e7490;
+    --cyan-lt:   #ecfeff;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(15,22,35,0.07), 0 1px 2px rgba(15,22,35,0.04);
+    --shadow-md: 0 4px 12px rgba(15,22,35,0.08), 0 2px 4px rgba(15,22,35,0.04);
+    --shadow-lg: 0 8px 24px rgba(15,22,35,0.1), 0 4px 8px rgba(15,22,35,0.05);
   }
+
   * { box-sizing: border-box; }
-  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; margin: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', system-ui, sans-serif;
+    margin: 0;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* Scrollbar */
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text4); }
+
+  /* Input base */
+  input, select, textarea {
+    font-family: 'Sora', system-ui, sans-serif;
+    color: var(--text);
+  }
+
+  select option {
+    background: #ffffff;
+    color: var(--text);
+  }
 }
