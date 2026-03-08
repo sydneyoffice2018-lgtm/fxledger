@@ -59,23 +59,21 @@ export function ExchangePage() {
     }
   }, [clientRate, feeRate, fromAmount, toAmount, lastEdited]);
 
-  // Profit = (clientRate - supplierRate) × fromAmount
-  // = what we earn per unit of fromCurrency exchanged
-  // expressed in toCurrency, then converted to fromCurrency for reporting
+  // We GET supplierRate CNY per AUD from supplier (e.g. 4.90)
+  // We GIVE clientRate CNY per AUD to client (e.g. 4.85)
+  // We KEEP the difference = (supplierRate - clientRate) * fromAmount in toCurrency
+  // e.g. (4.90 - 4.85) * 100,000 = +5,000 CNY profit
   const profitCalc = (() => {
     const from = parseFloat(fromAmount) || 0;
-    const cr = parseFloat(clientRate) || 0;   // e.g. 4.85 AUD/CNY given to client
-    const sr = parseFloat(supplierRate) || 0; // e.g. 4.90 AUD/CNY we pay to supplier
+    const cr = parseFloat(clientRate) || 0;    // rate we give client (lower = we keep more)
+    const sr = parseFloat(supplierRate) || 0;  // rate we get from supplier (higher = better)
     if (!from || !cr || !sr) return { profitInTo: 0, profitInFrom: 0 };
 
-    // toAmount from client side = from * clientRate
-    // Cost from supplier side   = from * supplierRate
-    // Profit in toCurrency      = from * clientRate - from * supplierRate
-    //                           = from * (clientRate - supplierRate)
-    const profitInTo = from * (cr - sr);
+    // Profit in toCurrency = what supplier gives us minus what we give client
+    const profitInTo = (sr - cr) * from;
 
-    // Convert profit to fromCurrency for AUD display
-    const profitInFrom = cr > 0 ? profitInTo / cr : 0;
+    // Also express in fromCurrency (AUD) for dashboard reporting
+    const profitInFrom = sr > 0 ? profitInTo / sr : 0;
 
     return { profitInTo, profitInFrom };
   })();
@@ -182,18 +180,18 @@ export function ExchangePage() {
                   label={`Client Rate (${fromCurrency}→${toCurrency})`}
                   type="number" step="0.000001" value={clientRate}
                   onChange={e => setClientRate(e.target.value)}
-                  placeholder="Rate given to client"
+                  placeholder="e.g. 4.85"
                 />
-                <p style={{ margin: '-8px 0 0', fontSize: 11, color: 'var(--text3)' }}>What client receives per 1 {fromCurrency}</p>
+                <p style={{ margin: '-8px 0 0', fontSize: 11, color: 'var(--text3)' }}>CNY we give client per 1 {fromCurrency} (lower)</p>
               </div>
               <div>
                 <Input
                   label={`Supplier Rate (${fromCurrency}→${toCurrency})`}
                   type="number" step="0.000001" value={supplierRate}
                   onChange={e => setSupplierRate(e.target.value)}
-                  placeholder="Rate from supplier"
+                  placeholder="e.g. 4.90"
                 />
-                <p style={{ margin: '-8px 0 0', fontSize: 11, color: 'var(--text3)' }}>What we pay supplier per 1 {fromCurrency}</p>
+                <p style={{ margin: '-8px 0 0', fontSize: 11, color: 'var(--text3)' }}>CNY supplier gives us per 1 {fromCurrency} (higher)</p>
               </div>
               <div>
                 <Input
@@ -208,8 +206,8 @@ export function ExchangePage() {
             {rateSpread !== null && (
               <div style={{
                 marginTop: 12, padding: '10px 14px', borderRadius: 8,
-                background: rateSpread >= 0 ? '#14532d22' : '#7f1d1d22',
-                border: `1px solid ${rateSpread >= 0 ? '#166534' : '#991b1b'}`,
+                background: rateSpread > 0 ? '#14532d22' : '#7f1d1d22',
+                border: `1px solid ${rateSpread > 0 ? '#166534' : '#991b1b'}`,
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center'
               }}>
                 <span style={{ fontSize: 13, color: 'var(--text2)' }}>
@@ -219,7 +217,7 @@ export function ExchangePage() {
                   {' '}per 1 {fromCurrency}
                 </span>
                 <span style={{ fontSize: 12, color: 'var(--text3)' }}>
-                  {rateSpread >= 0 ? '✅ Profitable' : '⚠️ Loss on spread'}
+                  {rateSpread > 0 ? '✅ Profitable' : rateSpread < 0 ? '⚠️ Loss on spread' : '➖ Break even'}
                 </span>
               </div>
             )}
@@ -293,13 +291,15 @@ export function ExchangePage() {
             }}>
               <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, marginBottom: 8 }}>PROFIT BREAKDOWN</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
-                <span style={{ color: 'var(--text3)' }}>Client pays ({fromAmount || '0'} × {clientRate || '0'})</span>
-                <span style={{ fontFamily: "'DM Mono',monospace" }}>{toAmount ? fmt(toAmount) : '—'} {toCurrency}</span>
+                <span style={{ color: 'var(--text3)' }}>We GET from supplier ({fromAmount || '0'} × {supplierRate || '0'})</span>
+                <span style={{ fontFamily: "'DM Mono',monospace", color: 'var(--green)' }}>
+                  {fromAmount && supplierRate ? fmt(parseFloat(fromAmount) * parseFloat(supplierRate)) : '—'} {toCurrency}
+                </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 12 }}>
-                <span style={{ color: 'var(--text3)' }}>Supplier cost ({fromAmount || '0'} × {supplierRate || '0'})</span>
+                <span style={{ color: 'var(--text3)' }}>We GIVE client ({fromAmount || '0'} × {clientRate || '0'})</span>
                 <span style={{ fontFamily: "'DM Mono',monospace", color: 'var(--red)' }}>
-                  {fromAmount && supplierRate ? fmt(parseFloat(fromAmount) * parseFloat(supplierRate)) : '—'} {toCurrency}
+                  {toAmount ? fmt(toAmount) : '—'} {toCurrency}
                 </span>
               </div>
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8, display: 'flex', justifyContent: 'space-between' }}>
