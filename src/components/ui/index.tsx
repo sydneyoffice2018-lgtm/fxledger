@@ -278,9 +278,9 @@ export function TD({ children, mono, right, muted, style }: {
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-export function Modal({ open, onClose, title, children, wide }: {
-  open: boolean; onClose: () => void;
-  title: string; children: React.ReactNode; wide?: boolean;
+export function Modal({ open = true, onClose, title, children, wide, width }: {
+  open?: boolean; onClose: () => void;
+  title: string; children: React.ReactNode; wide?: boolean; width?: number;
 }) {
   if (!open) return null;
   return (
@@ -298,7 +298,7 @@ export function Modal({ open, onClose, title, children, wide }: {
         background: 'var(--surface)',
         border: '1px solid var(--border2)',
         borderRadius: 14, width: '100%',
-        maxWidth: wide ? 780 : 520,
+        maxWidth: width ? width : wide ? 780 : 520,
         maxHeight: '90vh', overflowY: 'auto',
         boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
       }}>
