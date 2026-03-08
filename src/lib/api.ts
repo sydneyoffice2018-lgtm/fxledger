@@ -1,12 +1,36 @@
 import axios from 'axios';
 
-export const api = axios.create({ baseURL: '/api', withCredentials: true });
+const TOKEN_KEY = 'fx_ledger_token';
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+export function setToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+export const api = axios.create({ baseURL: '/api' });
+
+// Attach JWT token to every request
+api.interceptors.request.use(config => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 api.interceptors.response.use(
   res => res,
   err => {
     if (err.response?.status === 401) {
-      window.location.href = '/login';
+      clearToken();
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(err);
   }

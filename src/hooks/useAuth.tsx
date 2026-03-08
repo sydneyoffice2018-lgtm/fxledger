@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api } from '../lib/api';
+import { api, getToken, setToken, clearToken } from '../lib/api';
 import { User } from '../lib/types';
 
 interface AuthCtx {
@@ -16,16 +16,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/auth/me').then(r => setUser(r.data)).catch(() => setUser(null)).finally(() => setLoading(false));
+    // Only check /me if we have a stored token
+    const token = getToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    api.get('/auth/me')
+      .then(r => setUser(r.data))
+      .catch(() => { clearToken(); setUser(null); })
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (username: string, password: string) => {
     const r = await api.post('/auth/login', { username, password });
-    setUser(r.data);
+    setToken(r.data.token);
+    setUser({ id: r.data.id, username: r.data.username, role: r.data.role });
   };
 
   const logout = async () => {
-    await api.post('/auth/logout');
+    clearToken();
     setUser(null);
   };
 

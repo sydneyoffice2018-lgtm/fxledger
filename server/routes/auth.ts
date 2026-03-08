@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../db';
 import { users } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
-import { hashPassword, verifyPassword, requireAuth, requireAdmin } from '../auth';
+import { hashPassword, verifyPassword, requireAuth, requireAdmin, signToken } from '../auth';
 
 const router = Router();
 
@@ -16,20 +16,19 @@ router.post('/login', async (req, res) => {
   const valid = await verifyPassword(password, user.password);
   if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
-  req.session.userId = user.id;
-  req.session.role = user.role;
-  req.session.username = user.username;
-
-  res.json({ id: user.id, username: user.username, role: user.role });
+  const token = signToken({ userId: user.id, role: user.role, username: user.username });
+  res.json({ token, id: user.id, username: user.username, role: user.role });
 });
 
 router.post('/logout', (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
+  // JWT is stateless - client just discards the token
+  res.json({ ok: true });
 });
 
 router.get('/me', requireAuth, async (req, res) => {
+  const payload = (req as any).jwtPayload;
   const [user] = await db.select({ id: users.id, username: users.username, role: users.role })
-    .from(users).where(eq(users.id, req.session.userId as number));
+    .from(users).where(eq(users.id, payload.userId));
   if (!user) return res.status(401).json({ error: 'Not found' });
   res.json(user);
 });
@@ -49,8 +48,9 @@ router.post('/users', requireAdmin, async (req, res) => {
 });
 
 router.delete('/users/:id', requireAdmin, async (req, res) => {
+  const payload = (req as any).jwtPayload;
   const id = parseInt(req.params.id as string);
-  if (id === (req.session.userId as number)) return res.status(400).json({ error: 'Cannot delete yourself' });
+  if (id === payload.userId) return res.status(400).json({ error: 'Cannot delete yourself' });
   await db.delete(users).where(eq(users.id, id));
   res.json({ ok: true });
 });
