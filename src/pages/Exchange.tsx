@@ -130,7 +130,11 @@ export function ExchangePage() {
     : null;
 
   return (
-    <div>
+    <div style={{ animation: 'fadeUp 0.3s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#06b6d420', border: '1.5px solid #06b6d4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#06b6d4' }}>4</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#06b6d4', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 4 of 5</div>
+      </div>
       <PageHeader title="Currency Exchange" subtitle="Execute a currency exchange for a customer" />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 20, alignItems: 'start' }}>

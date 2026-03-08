@@ -148,6 +148,7 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
 
 // ── Suppliers List ─────────────────────────────────────────────────────────
 export function SuppliersPage() {
+  // STEP 2 in money flow: We send funds to supplier
   const [selected, setSelected] = useState<Supplier | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const qc = useQueryClient();
@@ -163,8 +164,12 @@ export function SuppliersPage() {
   if (selected) return <SupplierDetail supplier={selected} onBack={() => setSelected(null)} />;
 
   return (
-    <div>
-      <PageHeader title="Suppliers" subtitle="Currency providers and settlement partners" action={<Btn onClick={() => setShowAdd(true)}>+ Add Supplier</Btn>} />
+    <div style={{ animation: 'fadeUp 0.3s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#8b5cf620', border: '1.5px solid #8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#8b5cf6' }}>2</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#8b5cf6', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 2 of 5</div>
+      </div>
+      <PageHeader title="Supplier" subtitle="Send paper to supplier — they handle the conversion" action={<Btn onClick={() => setShowAdd(true)}>+ Add Supplier</Btn>} />
 
       {isLoading ? <Spinner /> : (
         <Card>

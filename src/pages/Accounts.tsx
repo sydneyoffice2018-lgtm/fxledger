@@ -70,8 +70,12 @@ export function AccountsPage() {
     }, {} as Record<string, number>);
 
   return (
-    <div>
-      <PageHeader title="Company Accounts" subtitle="Manage your business bank accounts and cash holdings" />
+    <div style={{ animation: 'fadeUp 0.3s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#3b82f620', border: '1.5px solid #3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#3b82f6' }}>3</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Step 3 of 5</div>
+      </div>
+      <PageHeader title="Our Banks" subtitle="Company bank accounts — money deposited here from BB, sent out to supplier" />
 
       {/* Summary */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
