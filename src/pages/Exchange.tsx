@@ -240,14 +240,58 @@ export function ExchangePage() {
             </div>
           </Card>
 
-          {/* Supplier */}
-          <Card>
-            <h3 style={{ margin: '0 0 14px', fontSize: 13, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Supplier (Optional)</h3>
-            <Select value={supplierId} onChange={e => setSupplierId(e.target.value)}>
-              <option value="">— No supplier —</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {/* Supplier — required, they do the exchange */}
+          <Card style={{ border: supplierId ? '1px solid #8b5cf640' : '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#8b5cf620', border: '1.5px solid #8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#8b5cf6', flexShrink: 0 }}>2</div>
+              <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Exchange Supplier</h3>
+              <span style={{ fontSize: 11, color: 'var(--text4)', marginLeft: 4 }}>— who converts the funds</span>
+            </div>
+
+            <Select label="Select Supplier *" value={supplierId} onChange={e => setSupplierId(e.target.value)}>
+              <option value="">— Select which supplier handles this exchange —</option>
+              {suppliers.map(s => {
+                const currencies = (() => { try { return JSON.parse(s.supportedCurrencies || '[]'); } catch { return []; } })();
+                const currencyStr = currencies.length ? ` · ${currencies.join(', ')}` : '';
+                return <option key={s.id} value={s.id}>{s.name}{currencyStr}</option>;
+              })}
             </Select>
-            {supplierId && <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--gold)' }}>⚠ A PENDING supplier payment will be auto-created</p>}
+
+            {supplierId && (() => {
+              const s = suppliers.find(x => String(x.id) === String(supplierId));
+              if (!s) return null;
+              const currencies = (() => { try { return JSON.parse(s.supportedCurrencies || '[]'); } catch { return []; } })();
+              return (
+                <div style={{ background: '#8b5cf610', border: '1px solid #8b5cf620', borderRadius: 9, padding: '12px 14px', marginTop: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 4 }}>{s.name}</div>
+                      {s.contact && <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>Contact: {s.contact}</div>}
+                      {s.phone && <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>Phone: {s.phone}</div>}
+                      {s.wechat && <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>WeChat: {s.wechat}</div>}
+                      {s.bankName && <div style={{ fontSize: 12, color: 'var(--text3)' }}>Bank: {s.bankName}{s.bankAccount ? ` · ${s.bankAccount}` : ''}</div>}
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 10, color: 'var(--text4)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Currencies</div>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        {currencies.length > 0 ? currencies.map((c: string) => (
+                          <span key={c} style={{ fontSize: 11, fontWeight: 700, color: '#8b5cf6', background: '#8b5cf615', border: '1px solid #8b5cf630', padding: '2px 7px', borderRadius: 10 }}>{c}</span>
+                        )) : <span style={{ fontSize: 11, color: 'var(--text4)' }}>—</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #8b5cf620', fontSize: 12, color: '#8b5cf6', fontWeight: 500 }}>
+                    ✓ A supplier payment record will be created automatically
+                  </div>
+                </div>
+              );
+            })()}
+
+            {!supplierId && (
+              <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span>⚠</span> You must select a supplier — they perform the actual currency exchange
+              </div>
+            )}
           </Card>
 
           {/* Settlement */}
