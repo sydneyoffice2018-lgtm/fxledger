@@ -87,6 +87,7 @@ export const exchangeOrders = pgTable('exchange_orders', {
   toAmount: decimal('to_amount', { precision: 18, scale: 4 }).notNull(),
   marketRate: decimal('market_rate', { precision: 18, scale: 6 }).notNull(),
   ourRate: decimal('our_rate', { precision: 18, scale: 6 }).notNull(),
+  supplierRate: decimal('supplier_rate', { precision: 18, scale: 6 }).notNull().default('0'),
   feeRate: decimal('fee_rate', { precision: 8, scale: 4 }).notNull().default('0'),
   feeAmount: decimal('fee_amount', { precision: 18, scale: 4 }).notNull().default('0'),
   profit: decimal('profit', { precision: 18, scale: 4 }).notNull().default('0'),

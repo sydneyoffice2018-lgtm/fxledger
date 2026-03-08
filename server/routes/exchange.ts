@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { customerId, supplierId, fromCurrency, toCurrency, fromAmount, toAmount, marketRate, ourRate, feeRate, feeAmount, profit, note } = req.body;
+  const { customerId, supplierId, fromCurrency, toCurrency, fromAmount, toAmount, marketRate, ourRate, supplierRate, feeRate, feeAmount, profit, note } = req.body;
 
   if (!customerId || !fromCurrency || !toCurrency || !fromAmount || !toAmount) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -58,6 +58,7 @@ router.post('/', async (req, res) => {
     toAmount: parseFloat(toAmount).toFixed(4),
     marketRate: parseFloat(marketRate).toFixed(6),
     ourRate: parseFloat(ourRate).toFixed(6),
+    supplierRate: parseFloat(supplierRate || ourRate || 0).toFixed(6),
     feeRate: parseFloat(feeRate || 0).toFixed(4),
     feeAmount: parseFloat(feeAmount || 0).toFixed(4),
     profit: parseFloat(profit || 0).toFixed(4),
