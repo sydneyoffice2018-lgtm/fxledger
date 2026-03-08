@@ -116,6 +116,8 @@ export function ExchangePage() {
       qc.invalidateQueries({ queryKey: ['customer-wallets', customerId] });
       qc.invalidateQueries({ queryKey: ['customer-txs', customerId] });
       qc.invalidateQueries({ queryKey: ['dash-stats'] });
+      qc.invalidateQueries({ queryKey: ['dash-chart'] });
+      qc.invalidateQueries({ queryKey: ['transactions'] });
       const sign = profitInFrom >= 0 ? '+' : '';
       toast(`Exchange done! Profit: ${sign}${fmt(profitInFrom)} ${fromCurrency}`);
       setFromAmount(''); setToAmount(''); setNote(''); setInCompanyAccountId(''); setOutCompanyAccountId('');

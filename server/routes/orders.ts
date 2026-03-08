@@ -135,3 +135,9 @@ router.put('/:id/cancel', async (req, res) => {
 });
 
 export default router;
+
+// Catch async errors in this router
+router.use((err: any, req: any, res: any, next: any) => {
+  console.error(`Route error in ${req.method} ${req.path}:`, err?.message);
+  res.status(500).json({ error: err?.message || 'Internal error' });
+});

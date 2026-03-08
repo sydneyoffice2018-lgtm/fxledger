@@ -3,13 +3,13 @@ import axios from 'axios';
 const TOKEN_KEY = 'fx_ledger_token';
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 export function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+  try { localStorage.setItem(TOKEN_KEY, token); } catch {}
 }
 export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
+  try { localStorage.removeItem(TOKEN_KEY); } catch {}
 }
 
 export const api = axios.create({ baseURL: '/api' });
@@ -17,20 +17,19 @@ export const api = axios.create({ baseURL: '/api' });
 // Attach JWT token to every request
 api.interceptors.request.use(config => {
   const token = getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
+// Only redirect to /login on 401 if NOT already on login and NOT from the login endpoint
 api.interceptors.response.use(
   res => res,
   err => {
-    // On 401 (not from login itself), clear token - let React re-render handle the redirect
-    if (err.response?.status === 401 && !err.config?.url?.includes('/auth/login')) {
+    const isLoginEndpoint = err.config?.url?.includes('/auth/login');
+    const isAlreadyOnLogin = typeof window !== 'undefined' && window.location.pathname === '/login';
+    if (err.response?.status === 401 && !isLoginEndpoint && !isAlreadyOnLogin) {
       clearToken();
-      // Don't do window.location.href redirect - that causes hard reload loops
-      // The AuthProvider will set user=null which triggers LoginPage to render
+      window.location.href = '/login';
     }
     return Promise.reject(err);
   }
@@ -40,10 +39,10 @@ export const fmt = (n: number | string, decimals = 2) =>
   Number(n).toLocaleString('en-AU', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 
 export const fmtDate = (d: string | Date) =>
-  new Date(d).toLocaleString('en-AU', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  new Date(d).toLocaleString('en-AU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 export const fmtDateShort = (d: string | Date) =>
-  new Date(d).toLocaleDateString('en-AU', { day:'2-digit', month:'short', year:'numeric' });
+  new Date(d).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export const CURRENCIES = ['AUD', 'CNY', 'USD', 'HKD', 'USDT', 'GBP', 'EUR'];
 

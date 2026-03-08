@@ -43,7 +43,8 @@ export function PaperPage() {
 
   const advanceMut = useMutation({
     mutationFn: (id: number) => api.put(`/orders/${id}/advance`, {}),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orders'] }); toast('Moved to Supplier step'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orders'] }); toast('Advanced to BB Deposit stage'); },
+    onError: (e: any) => toast(e?.response?.data?.error || 'Failed to advance order', 'error'),
   });
 
   return (

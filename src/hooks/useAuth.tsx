@@ -6,7 +6,7 @@ interface AuthCtx {
   user: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthCtx>({} as AuthCtx);
@@ -16,12 +16,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Only check /me if we have a stored token
     const token = getToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    if (!token) { setLoading(false); return; }
     api.get('/auth/me')
       .then(r => setUser(r.data))
       .catch(() => { clearToken(); setUser(null); })
@@ -34,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser({ id: r.data.id, username: r.data.username, role: r.data.role });
   };
 
-  const logout = async () => {
+  const logout = () => {
     clearToken();
     setUser(null);
   };

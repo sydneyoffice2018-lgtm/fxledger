@@ -24,8 +24,8 @@ export function DashboardPage() {
   const [, navigate] = useLocation();
   const qc = useQueryClient();
 
-  const { data: stats } = useQuery<DashStats>({ queryKey: ['dash'], queryFn: () => api.get('/dash').then(r => r.data) });
-  const { data: chart = [] } = useQuery<any[]>({ queryKey: ['chart'], queryFn: () => api.get('/dash/chart').then(r => r.data) });
+  const { data: stats } = useQuery<DashStats>({ queryKey: ['dash-stats'], queryFn: () => api.get('/dashboard/stats').then(r => r.data) });
+  const { data: chart = [] } = useQuery<any[]>({ queryKey: ['dash-chart'], queryFn: () => api.get('/dashboard/chart').then(r => r.data) });
   const { data: rates = [] } = useQuery<any[]>({ queryKey: ['rates'], queryFn: () => api.get('/rates').then(r => r.data) });
   const { data: orders = [] } = useQuery<any[]>({ queryKey: ['orders'], queryFn: () => api.get('/orders').then(r => r.data) });
 
@@ -106,7 +106,7 @@ export function DashboardPage() {
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>Active Pipeline</div>
               <div style={{ fontSize: 16, fontWeight: 700 }}>{activeOrders.length} orders in progress</div>
             </div>
-            <button onClick={() => navigate('/orders')} style={{
+            <button onClick={() => navigate('/paper')} style={{
               background: 'var(--accent-dim)', border: '1px solid rgba(232,160,32,0.2)',
               borderRadius: 8, padding: '6px 14px', color: 'var(--accent)',
               cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',

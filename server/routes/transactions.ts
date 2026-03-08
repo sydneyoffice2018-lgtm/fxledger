@@ -39,8 +39,8 @@ dashRouter.get('/stats', async (req, res) => {
   const todayOrders = allOrders.filter(o => new Date(o.createdAt) >= today);
   const monthOrders = allOrders.filter(o => new Date(o.createdAt) >= monthStart);
 
-  const todayProfit = todayOrders.reduce((s, o) => s + parseFloat(o.profit), 0);
-  const monthProfit = monthOrders.reduce((s, o) => s + parseFloat(o.profit), 0);
+  const todayProfit = todayOrders.reduce((s, o) => s + parseFloat(String(o.profit || 0)), 0);
+  const monthProfit = monthOrders.reduce((s, o) => s + parseFloat(String(o.profit || 0)), 0);
 
   const allCustomers = await db.select({ id: customers.id }).from(customers);
 

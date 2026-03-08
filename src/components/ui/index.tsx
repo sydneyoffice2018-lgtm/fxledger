@@ -401,7 +401,7 @@ export function TxBadge({ type }: { type: string }) {
   return <Badge color={s.color}>{s.label}</Badge>;
 }
 
-export function Empty({ icon = '◯', text }: { icon?: string; text: string }) {
+export function Empty({ icon = '◯', text, msg }: { icon?: string; text?: string; msg?: string }) {
   return (
     <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text4)' }}>
       <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.4 }}>{icon}</div>

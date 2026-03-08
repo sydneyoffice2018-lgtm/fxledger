@@ -316,7 +316,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           )}
 
           <button
-            onClick={() => { logout(); window.location.href = '/'; }}
+            onClick={() => logout()}
             style={{
               width: '100%', background: 'transparent',
               border: '1px solid var(--border)',

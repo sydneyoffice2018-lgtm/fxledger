@@ -45,6 +45,14 @@ app.use(express.static(distPath, {
     }
   }
 }));
+// Global error handler - prevent crashes from bubbling up
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error('API Error:', err?.message || err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: err?.message || 'Internal server error' });
+  }
+});
+
 // SPA fallback - only for non-asset, non-api routes
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/assets/')) return next();
