@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { db } from '../db';
+import { db, pool } from '../db';
 import { customers, wallets, transactions, exchangeOrders, suppliers } from '../../shared/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, gte } from 'drizzle-orm';
 import { requireAuth } from '../auth';
 
 const router = Router();
@@ -44,11 +44,42 @@ router.get('/:id/wallets', async (req, res) => {
 });
 
 router.get('/:id/transactions', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const days = parseInt(req.query.days as string) || 14;
+  const since = new Date();
+  since.setDate(since.getDate() - days);
   const rows = await db.select().from(transactions)
-    .where(eq(transactions.customerId, parseInt(req.params.id)))
+    .where(eq(transactions.customerId, id))
     .orderBy(desc(transactions.createdAt))
-    .limit(100);
-  res.json(rows);
+    .limit(200);
+  // Filter to last N days
+  const filtered = days < 999 ? rows.filter(r => new Date(r.createdAt) >= since) : rows;
+  res.json(filtered);
+});
+
+// Remittance orders for a customer
+router.get('/:id/orders', async (req, res) => {
+  try {
+    const { sql } = await import('drizzle-orm');
+    const result = await db.execute(sql`
+      SELECT ro.*, s.name AS supplier_name
+      FROM remittance_orders ro
+      LEFT JOIN suppliers s ON ro.supplier_id = s.id
+      WHERE ro.customer_id = ${parseInt(req.params.id)}
+      ORDER BY ro.created_at DESC
+      LIMIT 50
+    `);
+    const rows = (result as any).rows || result;
+    res.json((rows as any[]).map((r: any) => ({
+      id: r.id, reference: r.reference, status: r.status,
+      fromCurrency: r.from_currency, toCurrency: r.to_currency,
+      fromAmount: r.from_amount, toAmount: r.to_amount,
+      supplierName: r.supplier_name, bbName: r.bb_name,
+      createdAt: r.created_at, completedAt: r.completed_at,
+    })));
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message });
+  }
 });
 
 router.get('/:id/exchanges', async (req, res) => {

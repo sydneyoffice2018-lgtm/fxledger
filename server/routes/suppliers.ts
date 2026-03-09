@@ -59,6 +59,31 @@ router.delete('/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+// Remittance orders assigned to this supplier
+router.get('/:id/orders', async (req, res) => {
+  try {
+    const { sql } = await import('drizzle-orm');
+    const result = await db.execute(sql`
+      SELECT ro.*, c.name AS customer_name
+      FROM remittance_orders ro
+      JOIN customers c ON ro.customer_id = c.id
+      WHERE ro.supplier_id = ${parseInt(req.params.id)}
+      ORDER BY ro.created_at DESC
+      LIMIT 50
+    `);
+    const rows = (result as any).rows || result;
+    res.json((rows as any[]).map((r: any) => ({
+      id: r.id, reference: r.reference, status: r.status,
+      fromCurrency: r.from_currency, toCurrency: r.to_currency,
+      fromAmount: r.from_amount, toAmount: r.to_amount,
+      customerName: r.customer_name, bbName: r.bb_name,
+      createdAt: r.created_at, completedAt: r.completed_at,
+    })));
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message });
+  }
+});
+
 router.get('/:id/payments', async (req, res) => {
   const rows = await db.select({
     id: supplierPayments.id, supplierId: supplierPayments.supplierId,

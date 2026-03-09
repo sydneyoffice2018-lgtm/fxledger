@@ -126,6 +126,81 @@ router.put('/:id/advance', async (req, res) => {
   }
 });
 
+// Split an order across multiple suppliers with specific amounts
+// POST /orders/:id/split  body: { splits: [{ supplierId, amount, note }, ...], collectorName, collectorRef, inCompanyAccountId }
+router.post('/:id/split', async (req, res) => {
+  try {
+    const parentId = parseInt(req.params.id);
+    const { splits, collectorName, collectorRef, inCompanyAccountId } = req.body;
+
+    if (!splits || !Array.isArray(splits) || splits.length === 0) {
+      return res.status(400).json({ error: 'At least one split required' });
+    }
+    for (const s of splits) {
+      if (!s.supplierId || !s.amount || parseFloat(s.amount) <= 0) {
+        return res.status(400).json({ error: 'Each split needs a supplier and a positive amount' });
+      }
+    }
+
+    // Fetch parent order
+    const parentResult = await pool.query('SELECT * FROM remittance_orders WHERE id = $1', [parentId]);
+    const parent = parentResult.rows[0];
+    if (!parent) return res.status(404).json({ error: 'Order not found' });
+    if (parent.status !== 'cash_received') {
+      return res.status(400).json({ error: 'Can only split orders at cash_received stage' });
+    }
+
+    // Validate total doesn't exceed parent amount
+    const totalSplit = splits.reduce((s: number, sp: any) => s + parseFloat(sp.amount), 0);
+    const parentAmount = parseFloat(parent.from_amount);
+    if (totalSplit > parentAmount + 0.01) {
+      return res.status(400).json({ error: `Split total (${totalSplit}) exceeds order amount (${parentAmount})` });
+    }
+
+    // Create child orders, one per supplier
+    const created = [];
+    for (const split of splits) {
+      const ref = genRef();
+      const result = await pool.query(`
+        INSERT INTO remittance_orders
+          (reference, customer_id, supplier_id, from_currency, to_currency,
+           from_amount, to_amount, client_rate, supplier_rate, profit,
+           bb_name, bb_deposit_ref, in_company_account_id, note, status)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'sent_to_supplier')
+        RETURNING *`,
+        [
+          ref,
+          parent.customer_id,
+          parseInt(split.supplierId),
+          parent.from_currency,
+          parent.to_currency,
+          parseFloat(split.amount),
+          0,
+          parent.client_rate || 0,
+          parent.supplier_rate || 0,
+          0,
+          collectorName || parent.bb_name || null,
+          collectorRef || parent.bb_deposit_ref || null,
+          inCompanyAccountId ? parseInt(inCompanyAccountId) : (parent.in_company_account_id || null),
+          split.note || parent.note || null,
+        ]
+      );
+      created.push(result.rows[0]);
+    }
+
+    // Mark parent as split/cancelled — it's been dispatched
+    await pool.query(
+      `UPDATE remittance_orders SET status = 'cancelled', note = CONCAT(COALESCE(note,''), ' [split into ${splits.length} orders]') WHERE id = $1`,
+      [parentId]
+    );
+
+    res.json({ ok: true, created });
+  } catch (e: any) {
+    console.error('Split order error:', e?.message);
+    res.status(500).json({ error: e?.message || 'Failed to split order' });
+  }
+});
+
 // Cancel order
 router.put('/:id/cancel', async (req, res) => {
   try {
