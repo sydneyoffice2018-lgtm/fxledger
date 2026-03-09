@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../db';
+import { db, pool } from '../db';
 import { transactions, exchangeOrders, customers } from '../../shared/schema';
 import { eq, desc, gte } from 'drizzle-orm';
 import { requireAuth } from '../auth';
@@ -36,19 +36,16 @@ dashRouter.get('/stats', async (req, res) => {
     const today = new Date(); today.setHours(0,0,0,0);
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    // Count remittance orders (paper pipeline)
-    const { sql } = await import('drizzle-orm');
-    const { db } = await import('../db');
-
-    const remOrders = await db.execute(sql`SELECT created_at, profit FROM remittance_orders WHERE status != 'cancelled'`);
-    const remRows = (remOrders as any).rows || remOrders;
+    // Count both exchange_orders and remittance_orders
+    const remResult = await pool.query("SELECT created_at, profit FROM remittance_orders WHERE status != 'cancelled'");
+    const remRows = remResult.rows;
 
     const exchOrders = await db.select().from(exchangeOrders).orderBy(desc(exchangeOrders.createdAt));
 
     const todayExch = exchOrders.filter(o => new Date(o.createdAt) >= today);
     const monthExch = exchOrders.filter(o => new Date(o.createdAt) >= monthStart);
-    const todayRem = (remRows as any[]).filter((o: any) => new Date(o.created_at) >= today);
-    const monthRem = (remRows as any[]).filter((o: any) => new Date(o.created_at) >= monthStart);
+    const todayRem = remRows.filter((o: any) => new Date(o.created_at) >= today);
+    const monthRem = remRows.filter((o: any) => new Date(o.created_at) >= monthStart);
 
     const todayProfit = todayExch.reduce((s, o) => s + parseFloat(String(o.profit || 0)), 0)
                       + todayRem.reduce((s: number, o: any) => s + parseFloat(String(o.profit || 0)), 0);

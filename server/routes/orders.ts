@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../db';
+import { db, pool } from '../db';
 import { sql } from 'drizzle-orm';
 import { requireAuth } from '../auth';
 
@@ -90,33 +90,37 @@ router.put('/:id/advance', async (req, res) => {
     const orderId = parseInt(req.params.id);
     const { bbName, bbDepositRef, inCompanyAccountId, outCompanyAccountId, payoutMethod, payoutDetail, note } = req.body;
 
-    const result = await db.execute(sql`SELECT status FROM remittance_orders WHERE id = ${orderId}`);
-    const rows = (result as any).rows || result;
-    const order = (rows as any[])[0];
+    // Get current status
+    const statusResult = await pool.query('SELECT status FROM remittance_orders WHERE id = $1', [orderId]);
+    const order = statusResult.rows[0];
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
     const currentIdx = STAGE_ORDER.indexOf(order.status);
     if (currentIdx < 0 || currentIdx >= STAGE_ORDER.length - 1) {
-      return res.status(400).json({ error: 'Cannot advance order' });
+      return res.status(400).json({ error: 'Cannot advance order from status: ' + order.status });
     }
     const nextStatus = STAGE_ORDER[currentIdx + 1];
-    const completedAt = nextStatus === 'completed' ? new Date() : null;
 
-    await db.execute(sql`
-      UPDATE remittance_orders SET
-        status = ${nextStatus},
-        bb_name = COALESCE(${bbName || null}, bb_name),
-        bb_deposit_ref = COALESCE(${bbDepositRef || null}, bb_deposit_ref),
-        in_company_account_id = COALESCE(${inCompanyAccountId ? parseInt(inCompanyAccountId) : null}, in_company_account_id),
-        out_company_account_id = COALESCE(${outCompanyAccountId ? parseInt(outCompanyAccountId) : null}, out_company_account_id),
-        payout_method = COALESCE(${payoutMethod || null}, payout_method),
-        payout_detail = COALESCE(${payoutDetail || null}, payout_detail),
-        note = CASE WHEN ${note || null} IS NOT NULL THEN CONCAT(COALESCE(note, ''), ' | ', ${note || ''}) ELSE note END,
-        completed_at = ${completedAt}
-      WHERE id = ${orderId}
-    `);
+    // Build SET clauses only for values that were actually provided
+    const sets: string[] = ['status = $1'];
+    const params: any[] = [nextStatus];
+    let p = 2;
+
+    if (bbName)              { sets.push(`bb_name = $${p++}`);               params.push(bbName); }
+    if (bbDepositRef)        { sets.push(`bb_deposit_ref = $${p++}`);        params.push(bbDepositRef); }
+    if (inCompanyAccountId)  { sets.push(`in_company_account_id = $${p++}`); params.push(parseInt(inCompanyAccountId)); }
+    if (outCompanyAccountId) { sets.push(`out_company_account_id = $${p++}`); params.push(parseInt(outCompanyAccountId)); }
+    if (payoutMethod)        { sets.push(`payout_method = $${p++}`);         params.push(payoutMethod); }
+    if (payoutDetail)        { sets.push(`payout_detail = $${p++}`);         params.push(payoutDetail); }
+    if (note)                { sets.push(`note = CONCAT(COALESCE(note, ''), ' | ', $${p++})`); params.push(note); }
+    if (nextStatus === 'completed') { sets.push('completed_at = NOW()'); }
+
+    params.push(orderId);
+    await pool.query(`UPDATE remittance_orders SET ${sets.join(', ')} WHERE id = $${p}`, params);
+
     res.json({ ok: true, status: nextStatus });
   } catch (e: any) {
+    console.error('Advance order error:', e?.message);
     res.status(500).json({ error: e?.message || 'Failed to advance order' });
   }
 });
