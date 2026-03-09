@@ -4,6 +4,23 @@ import { api, fmt, fmtDate, CURRENCY_COLORS, CURRENCIES } from '../lib/api';
 import { Customer, Wallet, Transaction, ExchangeOrder } from '../lib/types';
 import { Card, Btn, Input, Select, Textarea, Modal, Table, Tr, Td, TxBadge, CurrencyPill, PageHeader, Empty, Spinner, toast } from '../components/ui';
 
+const STATUS_COLORS: Record<string, string> = {
+  cash_received:      '#f59e0b',
+  bb_deposited:       '#4080ff',
+  sent_to_supplier:   '#8b5cf6',
+  supplier_converting:'#06b6d4',
+  completed:          '#22c55e',
+  cancelled:          '#6b7280',
+};
+const STATUS_LABELS: Record<string, string> = {
+  cash_received:      'Paper Received',
+  bb_deposited:       'Collector Deposited',
+  sent_to_supplier:   'Sent to Supplier',
+  supplier_converting:'Converting',
+  completed:          'Completed',
+  cancelled:          'Cancelled',
+};
+
 // ── Add/Edit Customer Modal ────────────────────────────────────────────────
 function CustomerModal({ customer, onClose }: { customer?: Customer; onClose: () => void }) {
   const qc = useQueryClient();
@@ -68,7 +85,13 @@ function DepositModal({ customer, onClose }: { customer: Customer; onClose: () =
 
   const mut = useMutation({
     mutationFn: () => api.post(`/customers/${customer.id}/${isWithdraw ? 'withdraw' : 'deposit'}`, { currency, amount: parseFloat(amount), note }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['customer-wallets', customer.id] }); qc.invalidateQueries({ queryKey: ['customer-txs', customer.id] }); qc.invalidateQueries({ queryKey: ['dash-stats'] }); toast(`${isWithdraw ? 'Withdrawal' : 'Deposit'} successful`); onClose(); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['customer-wallets', customer.id] });
+      qc.invalidateQueries({ queryKey: ['customer-txs', customer.id] });
+      qc.invalidateQueries({ queryKey: ['dash-stats'] });
+      toast(`${isWithdraw ? 'Withdrawal' : 'Deposit'} successful`);
+      onClose();
+    },
     onError: (e: any) => toast(e?.response?.data?.error || 'Transaction failed', 'error'),
   });
 
@@ -93,23 +116,105 @@ function DepositModal({ customer, onClose }: { customer: Customer; onClose: () =
   );
 }
 
+// ── Order Row (expandable) ─────────────────────────────────────────────────
+function OrderRow({ order }: { order: any }) {
+  const [open, setOpen] = useState(false);
+  const color = STATUS_COLORS[order.status] || 'var(--text3)';
+  return (
+    <>
+      <Tr onClick={() => setOpen(o => !o)} style={{ cursor: 'pointer' }}>
+        <Td muted>{fmtDate(order.createdAt)}</Td>
+        <Td><span style={{ fontFamily: "'JetBrains Mono',monospace", color: '#f59e0b', fontWeight: 600 }}>{fmt(order.fromAmount)} {order.fromCurrency}</span></Td>
+        <Td muted>{order.toCurrency}</Td>
+        <Td>{order.supplierName || <span style={{ color: 'var(--text4)' }}>—</span>}</Td>
+        <Td>
+          <span style={{ background: color + '18', color, border: `1px solid ${color}30`, borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
+            {STATUS_LABELS[order.status] || order.status}
+          </span>
+        </Td>
+        <Td><span style={{ color: 'var(--text4)', fontSize: 13 }}>{open ? '▲' : '▼'}</span></Td>
+      </Tr>
+      {open && (
+        <tr>
+          <td colSpan={6} style={{ padding: '0 0 0 0', background: 'var(--surface2)' }}>
+            <div style={{ padding: '14px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, borderBottom: '1px solid var(--border)' }}>
+              <div><div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Reference</div><div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{order.reference}</div></div>
+              <div><div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Amount Out</div><div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{order.toAmount ? `${fmt(order.toAmount)} ${order.toCurrency}` : '—'}</div></div>
+              <div><div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Collector</div><div style={{ fontSize: 12 }}>{order.bbName || '—'}</div></div>
+              {order.completedAt && <div><div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Completed</div><div style={{ fontSize: 12 }}>{fmtDate(order.completedAt)}</div></div>}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+// ── Transaction Row (expandable) ────────────────────────────────────────────
+function TxRow({ tx }: { tx: Transaction }) {
+  const [open, setOpen] = useState(false);
+  const positive = parseFloat(tx.amount) >= 0;
+  return (
+    <>
+      <Tr onClick={() => setOpen(o => !o)} style={{ cursor: 'pointer' }}>
+        <Td muted>{fmtDate(tx.createdAt)}</Td>
+        <Td><TxBadge type={tx.type} /></Td>
+        <Td><CurrencyPill currency={tx.currency} /></Td>
+        <Td mono><span style={{ color: positive ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{positive ? '+' : ''}{fmt(tx.amount)}</span></Td>
+        <Td mono muted>{fmt(tx.balanceAfter)}</Td>
+        <Td muted style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.note || '—'}</Td>
+        <Td><span style={{ color: 'var(--text4)', fontSize: 13 }}>{open ? '▲' : '▼'}</span></Td>
+      </Tr>
+      {open && (
+        <tr>
+          <td colSpan={7} style={{ background: 'var(--surface2)' }}>
+            <div style={{ padding: '12px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, borderBottom: '1px solid var(--border)' }}>
+              <div><div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Full Note</div><div style={{ fontSize: 12 }}>{tx.note || '—'}</div></div>
+              <div><div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Balance After</div><div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{fmt(tx.balanceAfter)} {tx.currency}</div></div>
+              <div><div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Transaction ID</div><div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text4)' }}>#{tx.id}</div></div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 // ── Customer Detail ────────────────────────────────────────────────────────
 function CustomerDetail({ customer, onBack }: { customer: Customer; onBack: () => void }) {
   const qc = useQueryClient();
   const [modal, setModal] = useState<'deposit' | 'edit' | null>(null);
-  const [txTab, setTxTab] = useState<'transactions' | 'exchanges'>('transactions');
+  const [tab, setTab] = useState<'orders' | 'transactions' | 'exchanges'>('orders');
 
-  const { data: wallets = [] } = useQuery<Wallet[]>({ queryKey: ['customer-wallets', customer.id], queryFn: () => api.get(`/customers/${customer.id}/wallets`).then(r => r.data) });
-  const { data: txs = [], isLoading: txLoading } = useQuery<Transaction[]>({ queryKey: ['customer-txs', customer.id], queryFn: () => api.get(`/customers/${customer.id}/transactions`).then(r => r.data) });
-  const { data: exchanges = [] } = useQuery<ExchangeOrder[]>({ queryKey: ['customer-exchanges', customer.id], queryFn: () => api.get(`/customers/${customer.id}/exchanges`).then(r => r.data) });
-
-  const deleteMut = useMutation({
-    mutationFn: () => api.delete(`/customers/${customer.id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['customers'] }); toast('Customer deleted'); onBack(); },
-    onError: () => toast('Delete failed', 'error'),
+  const { data: wallets = [] } = useQuery<Wallet[]>({
+    queryKey: ['customer-wallets', customer.id],
+    queryFn: () => api.get(`/customers/${customer.id}/wallets`).then(r => r.data),
+  });
+  const { data: orders = [] } = useQuery<any[]>({
+    queryKey: ['customer-orders', customer.id],
+    queryFn: () => api.get(`/customers/${customer.id}/orders`).then(r => r.data),
+  });
+  const { data: txs = [], isLoading: txLoading } = useQuery<Transaction[]>({
+    queryKey: ['customer-txs', customer.id],
+    queryFn: () => api.get(`/customers/${customer.id}/transactions?days=14`).then(r => r.data),
+  });
+  const { data: exchanges = [] } = useQuery<ExchangeOrder[]>({
+    queryKey: ['customer-exchanges', customer.id],
+    queryFn: () => api.get(`/customers/${customer.id}/exchanges`).then(r => r.data),
   });
 
-  const idTypeLabel = { passport: 'Passport', drivers_license: "Driver's Licence", national_id: 'National ID' };
+  const idTypeLabel: Record<string, string> = { passport: 'Passport', drivers_license: "Driver's Licence", national_id: 'National ID' };
+
+  // Stats
+  const activeOrders = (orders as any[]).filter(o => !['completed','cancelled'].includes(o.status));
+  const completedOrders = (orders as any[]).filter(o => o.status === 'completed');
+  const totalVolume = (orders as any[]).filter(o => o.status === 'completed').reduce((s, o) => s + parseFloat(o.fromAmount || 0), 0);
+
+  const TABS = [
+    { key: 'orders',       label: `Orders (${orders.length})` },
+    { key: 'transactions', label: `Transactions · 14 days (${txs.length})` },
+    { key: 'exchanges',    label: `FX History (${exchanges.length})` },
+  ] as const;
 
   return (
     <div>
@@ -117,73 +222,105 @@ function CustomerDetail({ customer, onBack }: { customer: Customer; onBack: () =
         ← Back to Customers
       </button>
 
-      <Card style={{ marginBottom: 20 }}>
+      {/* ── Profile card ── */}
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 800 }}>{customer.name}</h2>
+            <h2 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 800 }}>{customer.name}</h2>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', color: 'var(--text2)', fontSize: 13 }}>
               {customer.phone && <span>📞 {customer.phone}</span>}
               {customer.email && <span>✉ {customer.email}</span>}
               {customer.wechat && <span>💬 {customer.wechat}</span>}
             </div>
             {customer.idNumber && (
-              <div style={{ marginTop: 6, color: 'var(--text3)', fontSize: 12, fontFamily: "'DM Mono',monospace" }}>
-                {idTypeLabel[customer.idType || 'passport']}: {customer.idNumber}
+              <div style={{ marginTop: 5, color: 'var(--text3)', fontSize: 12, fontFamily: "'DM Mono',monospace" }}>
+                🪪 {idTypeLabel[customer.idType || 'passport']}: {customer.idNumber}
                 {customer.idExpiry && ` · Exp: ${customer.idExpiry}`}
                 {customer.dateOfBirth && ` · DOB: ${customer.dateOfBirth}`}
               </div>
             )}
             {customer.bankAccount && (
-              <div style={{ marginTop: 4, color: 'var(--text3)', fontSize: 12 }}>
-                🏦 {customer.bankName} · {customer.bankBsb} / {customer.bankAccount}
+              <div style={{ marginTop: 3, color: 'var(--text3)', fontSize: 12 }}>
+                🏦 {customer.bankName} · BSB {customer.bankBsb} · {customer.bankAccount}
               </div>
             )}
+            {customer.notes && <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text4)', fontStyle: 'italic' }}>{customer.notes}</div>}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Btn size="sm" onClick={() => setModal('deposit')}>↙ Deposit/Withdraw</Btn>
+            <Btn size="sm" onClick={() => setModal('deposit')}>↙ Deposit / Withdraw</Btn>
             <Btn variant="secondary" size="sm" onClick={() => setModal('edit')}>✎ Edit</Btn>
-            <Btn variant="danger" size="sm" onClick={() => confirm('Delete this customer?') && deleteMut.mutate()}>🗑</Btn>
           </div>
-        </div>
-
-        {/* Wallets */}
-        <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
-          {wallets.length === 0 && <span style={{ color: 'var(--text3)', fontSize: 13 }}>No balances yet</span>}
-          {wallets.map(w => (
-            <div key={w.id} style={{ background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 10, padding: '10px 16px', display: 'flex', gap: 8, alignItems: 'baseline' }}>
-              <CurrencyPill currency={w.currency} />
-              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 16, fontWeight: 700 }}>{fmt(w.balance)}</span>
-            </div>
-          ))}
         </div>
       </Card>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 16, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
-        {(['transactions', 'exchanges'] as const).map(t => (
-          <button key={t} onClick={() => setTxTab(t)} style={{ padding: '7px 18px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: txTab === t ? 'var(--accent)' : 'transparent', color: txTab === t ? '#fff' : 'var(--text3)', textTransform: 'capitalize' }}>
-            {t}
+      {/* ── Stats row ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, marginBottom: 16 }}>
+        {[
+          { label: 'Active Orders', value: activeOrders.length, color: '#f59e0b' },
+          { label: 'Completed Orders', value: completedOrders.length, color: '#22c55e' },
+          { label: 'Total Volume (AUD)', value: `A$${fmt(totalVolume)}`, color: 'var(--text)' },
+        ].map((s, i) => (
+          <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{s.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", color: s.color }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Wallet balances ── */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Current Balances</div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {wallets.length === 0
+            ? <span style={{ color: 'var(--text4)', fontSize: 13 }}>No balances yet</span>
+            : wallets.map(w => (
+              <div key={w.id} style={{
+                background: 'var(--surface)', border: `1px solid ${CURRENCY_COLORS[w.currency] || 'var(--border)'}40`,
+                borderRadius: 10, padding: '12px 18px',
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: CURRENCY_COLORS[w.currency] || 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{w.currency}</div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 20, fontWeight: 800, color: CURRENCY_COLORS[w.currency] || 'var(--text)' }}>{fmt(w.balance)}</div>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      {/* ── Tabs ── */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, width: 'fit-content', flexWrap: 'wrap' }}>
+        {TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
+            fontSize: 12, fontWeight: 600,
+            background: tab === t.key ? 'var(--accent)' : 'transparent',
+            color: tab === t.key ? '#0c0e12' : 'var(--text3)',
+            whiteSpace: 'nowrap',
+          }}>
+            {t.label}
           </button>
         ))}
       </div>
 
       <Card>
-        {txTab === 'transactions' && (
-          txLoading ? <Spinner /> : txs.length === 0 ? <Empty msg="No transactions yet" /> :
-          <Table headers={['Date', 'Type', 'Currency', 'Amount', 'Balance After', 'Note']}>
-            {txs.map(tx => (
-              <Tr key={tx.id}>
-                <Td muted>{fmtDate(tx.createdAt)}</Td>
-                <Td><TxBadge type={tx.type} /></Td>
-                <Td><CurrencyPill currency={tx.currency} /></Td>
-                <Td mono><span style={{ color: parseFloat(tx.amount) >= 0 ? 'var(--green)' : 'var(--red)' }}>{parseFloat(tx.amount) >= 0 ? '+' : ''}{fmt(tx.amount)}</span></Td>
-                <Td mono muted>{fmt(tx.balanceAfter)}</Td>
-                <Td muted>{tx.note || '—'}</Td>
-              </Tr>
-            ))}
+        {/* Orders tab */}
+        {tab === 'orders' && (
+          orders.length === 0 ? <Empty msg="No orders yet" /> :
+          <Table headers={['Date', 'Amount', 'To', 'Supplier', 'Status', '']}>
+            {(orders as any[]).map(o => <OrderRow key={o.id} order={o} />)}
           </Table>
         )}
-        {txTab === 'exchanges' && (
+
+        {/* Transactions tab — last 14 days */}
+        {tab === 'transactions' && (
+          txLoading ? <Spinner /> :
+          txs.length === 0 ? <Empty msg="No transactions in the last 14 days" /> :
+          <Table headers={['Date', 'Type', 'Currency', 'Amount', 'Balance After', 'Note', '']}>
+            {txs.map(tx => <TxRow key={tx.id} tx={tx} />)}
+          </Table>
+        )}
+
+        {/* FX exchanges tab */}
+        {tab === 'exchanges' && (
           exchanges.length === 0 ? <Empty msg="No exchange history" /> :
           <Table headers={['Date', 'From', 'To', 'Market Rate', 'Our Rate', 'Profit', 'Supplier']}>
             {exchanges.map(o => (
@@ -207,13 +344,16 @@ function CustomerDetail({ customer, onBack }: { customer: Customer; onBack: () =
   );
 }
 
-// ── Customer List Page ─────────────────────────────────────────────────────
+// ── Customer List ──────────────────────────────────────────────────────────
 export function CustomersPage() {
   const [selected, setSelected] = useState<Customer | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
 
-  const { data: customers = [], isLoading } = useQuery<Customer[]>({ queryKey: ['customers'], queryFn: () => api.get('/customers').then(r => r.data) });
+  const { data: customers = [], isLoading } = useQuery<Customer[]>({
+    queryKey: ['customers'],
+    queryFn: () => api.get('/customers').then(r => r.data),
+  });
 
   if (selected) return <CustomerDetail customer={selected} onBack={() => setSelected(null)} />;
 

@@ -4,6 +4,23 @@ import { api, fmt, fmtDate, CURRENCIES, CURRENCY_COLORS } from '../lib/api';
 import { Supplier, SupplierPayment } from '../lib/types';
 import { Card, Btn, Input, Select, Textarea, Modal, Table, Tr, Td, TxBadge, CurrencyPill, PageHeader, Empty, Spinner, toast } from '../components/ui';
 
+const STATUS_COLORS: Record<string, string> = {
+  cash_received:      '#f59e0b',
+  bb_deposited:       '#4080ff',
+  sent_to_supplier:   '#8b5cf6',
+  supplier_converting:'#06b6d4',
+  completed:          '#22c55e',
+  cancelled:          '#6b7280',
+};
+const STATUS_LABELS: Record<string, string> = {
+  cash_received:      'Paper Received',
+  bb_deposited:       'Collector Dep.',
+  sent_to_supplier:   'Sent to Supplier',
+  supplier_converting:'Converting',
+  completed:          'Completed',
+  cancelled:          'Cancelled',
+};
+
 // ── Add/Edit Supplier Modal ────────────────────────────────────────────────
 function SupplierModal({ supplier, onClose }: { supplier?: Supplier; onClose: () => void }) {
   const qc = useQueryClient();
@@ -60,11 +77,97 @@ function SupplierModal({ supplier, onClose }: { supplier?: Supplier; onClose: ()
   );
 }
 
+// ── Expandable order row ───────────────────────────────────────────────────
+function SupOrderRow({ order }: { order: any }) {
+  const [open, setOpen] = useState(false);
+  const color = STATUS_COLORS[order.status] || 'var(--text3)';
+  return (
+    <>
+      <Tr onClick={() => setOpen(o => !o)} style={{ cursor: 'pointer' }}>
+        <Td muted>{fmtDate(order.createdAt)}</Td>
+        <Td><span style={{ fontWeight: 600 }}>{order.customerName}</span></Td>
+        <Td mono><span style={{ color: '#f59e0b', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>{fmt(order.fromAmount)} {order.fromCurrency}</span></Td>
+        <Td muted>{order.toCurrency}</Td>
+        <Td>
+          <span style={{ background: color + '18', color, border: `1px solid ${color}30`, borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
+            {STATUS_LABELS[order.status] || order.status}
+          </span>
+        </Td>
+        <Td><span style={{ color: 'var(--text4)', fontSize: 13 }}>{open ? '▲' : '▼'}</span></Td>
+      </Tr>
+      {open && (
+        <tr>
+          <td colSpan={6} style={{ background: 'var(--surface2)' }}>
+            <div style={{ padding: '14px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, borderBottom: '1px solid var(--border)' }}>
+              <div><div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Reference</div><div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{order.reference}</div></div>
+              <div><div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Amount Out</div><div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{order.toAmount ? `${fmt(order.toAmount)} ${order.toCurrency}` : '—'}</div></div>
+              <div><div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Collector</div><div style={{ fontSize: 12 }}>{order.bbName || '—'}</div></div>
+              {order.completedAt && <div><div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Completed</div><div style={{ fontSize: 12 }}>{fmtDate(order.completedAt)}</div></div>}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+// ── Expandable payment row ─────────────────────────────────────────────────
+function PaymentRow({ p, onUpdate }: { p: SupplierPayment; onUpdate: (id: number, status: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Tr onClick={() => setOpen(o => !o)} style={{ cursor: 'pointer' }}>
+        <Td muted>{fmtDate(p.createdAt)}</Td>
+        <Td><span style={{ fontWeight: 600 }}>{p.customerName || '—'}</span></Td>
+        <Td><CurrencyPill currency={p.currency} /></Td>
+        <Td mono>{fmt(p.amount)}</Td>
+        <Td><TxBadge type={p.status} /></Td>
+        <Td><span style={{ color: 'var(--text4)', fontSize: 13 }}>{open ? '▲' : '▼'}</span></Td>
+      </Tr>
+      {open && (
+        <tr>
+          <td colSpan={6} style={{ background: 'var(--surface2)' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
+                {p.orderFromCurrency && <div>
+                  <div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Order</div>
+                  <div style={{ fontSize: 12 }}>{fmt(p.orderFromAmount || 0)} {p.orderFromCurrency} → {fmt(p.orderToAmount || 0)} {p.orderToCurrency}</div>
+                </div>}
+                {p.customerBankAccount && <div>
+                  <div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Client Bank</div>
+                  <div style={{ fontSize: 12, fontFamily: "'JetBrains Mono',monospace" }}>{p.customerBankName} · {p.customerBankBsb}/{p.customerBankAccount}</div>
+                </div>}
+                {p.note && <div>
+                  <div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Note</div>
+                  <div style={{ fontSize: 12 }}>{p.note}</div>
+                </div>}
+              </div>
+              {p.status === 'pending' && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Btn size="sm" variant="success" onClick={e => { e.stopPropagation(); onUpdate(p.id, 'completed'); }}>✓ Mark Complete</Btn>
+                  <Btn size="sm" variant="danger" onClick={e => { e.stopPropagation(); onUpdate(p.id, 'cancelled'); }}>✗ Cancel</Btn>
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 // ── Supplier Detail ────────────────────────────────────────────────────────
 function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () => void }) {
   const qc = useQueryClient();
   const [modal, setModal] = useState(false);
-  const { data: payments = [], isLoading } = useQuery<SupplierPayment[]>({
+  const [tab, setTab] = useState<'orders' | 'payments'>('orders');
+
+  const { data: orders = [], isLoading: ordersLoading } = useQuery<any[]>({
+    queryKey: ['supplier-orders', supplier.id],
+    queryFn: () => api.get(`/suppliers/${supplier.id}/orders`).then(r => r.data),
+  });
+
+  const { data: payments = [], isLoading: paymentsLoading } = useQuery<SupplierPayment[]>({
     queryKey: ['supplier-payments', supplier.id],
     queryFn: () => api.get(`/suppliers/${supplier.id}/payments`).then(r => r.data),
   });
@@ -77,14 +180,30 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
 
   const currencies = (() => { try { return JSON.parse(supplier.supportedCurrencies) as string[]; } catch { return []; } })();
 
+  // Stats
+  const activeOrders = (orders as any[]).filter(o => !['completed','cancelled'].includes(o.status));
+  const completedOrders = (orders as any[]).filter(o => o.status === 'completed');
+  const totalVolume = (orders as any[]).filter(o => o.status !== 'cancelled').reduce((s, o) => s + parseFloat(o.fromAmount || 0), 0);
+  const recentOrders = (orders as any[]).filter(o => {
+    const d = new Date(o.createdAt);
+    const since = new Date(); since.setDate(since.getDate() - 14);
+    return d >= since;
+  });
+
+  const TABS = [
+    { key: 'orders',   label: `Remittance Orders · 14 days (${recentOrders.length})` },
+    { key: 'payments', label: `Payments (${payments.length})` },
+  ] as const;
+
   return (
     <div>
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 13, marginBottom: 16, padding: 0 }}>← Back to Suppliers</button>
 
-      <Card style={{ marginBottom: 20 }}>
+      {/* ── Profile card ── */}
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800 }}>{supplier.name}</h2>
+            <h2 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 800 }}>{supplier.name}</h2>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', color: 'var(--text2)', fontSize: 13 }}>
               {supplier.contact && <span>👤 {supplier.contact}</span>}
               {supplier.phone && <span>📞 {supplier.phone}</span>}
@@ -92,50 +211,64 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
               {supplier.wechat && <span>💬 {supplier.wechat}</span>}
             </div>
             {supplier.bankAccount && (
-              <div style={{ marginTop: 6, color: 'var(--text3)', fontSize: 12 }}>
-                🏦 {supplier.bankName} · {supplier.bankBsb} / {supplier.bankAccount}
+              <div style={{ marginTop: 5, color: 'var(--text3)', fontSize: 12 }}>
+                🏦 {supplier.bankName} · BSB {supplier.bankBsb} · {supplier.bankAccount}
               </div>
             )}
             <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
               {currencies.map((c: string) => <CurrencyPill key={c} currency={c} />)}
             </div>
+            {supplier.notes && <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text4)', fontStyle: 'italic' }}>{supplier.notes}</div>}
           </div>
           <Btn variant="secondary" size="sm" onClick={() => setModal(true)}>✎ Edit</Btn>
         </div>
       </Card>
 
-      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Payment History</h3>
+      {/* ── Stats row ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, marginBottom: 16 }}>
+        {[
+          { label: 'Active Orders',    value: activeOrders.length,           color: '#8b5cf6' },
+          { label: 'Completed Orders', value: completedOrders.length,        color: '#22c55e' },
+          { label: 'Last 14 Days',     value: recentOrders.length,           color: '#06b6d4' },
+          { label: 'Total Volume (AUD)', value: `A$${fmt(totalVolume)}`,     color: 'var(--text)' },
+        ].map((s, i) => (
+          <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{s.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", color: s.color }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Tabs ── */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, width: 'fit-content', flexWrap: 'wrap' }}>
+        {TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
+            fontSize: 12, fontWeight: 600,
+            background: tab === t.key ? '#8b5cf6' : 'transparent',
+            color: tab === t.key ? '#fff' : 'var(--text3)',
+            whiteSpace: 'nowrap',
+          }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <Card>
-        {isLoading ? <Spinner /> : payments.length === 0 ? <Empty msg="No payments yet" /> : (
-          <Table headers={['Date', 'Customer', 'Order', 'Currency', 'Amount', 'Status', 'Settlement', 'Actions']}>
+        {tab === 'orders' && (
+          ordersLoading ? <Spinner /> :
+          recentOrders.length === 0 ? <Empty msg="No orders in the last 14 days" /> :
+          <Table headers={['Date', 'Client', 'Amount', 'To', 'Status', '']}>
+            {recentOrders.map((o: any) => <SupOrderRow key={o.id} order={o} />)}
+          </Table>
+        )}
+
+        {tab === 'payments' && (
+          paymentsLoading ? <Spinner /> :
+          payments.length === 0 ? <Empty msg="No payments yet" /> :
+          <Table headers={['Date', 'Customer', 'Currency', 'Amount', 'Status', '']}>
             {payments.map(p => (
-              <Tr key={p.id}>
-                <Td muted>{fmtDate(p.createdAt)}</Td>
-                <Td><span style={{ fontWeight: 600 }}>{p.customerName || '—'}</span></Td>
-                <Td muted>
-                  {p.orderFromCurrency && <span style={{ fontSize: 12 }}>
-                    <CurrencyPill currency={p.orderFromCurrency} /> {fmt(p.orderFromAmount || 0)} → <CurrencyPill currency={p.orderToCurrency || ''} /> {fmt(p.orderToAmount || 0)}
-                  </span>}
-                </Td>
-                <Td><CurrencyPill currency={p.currency} /></Td>
-                <Td mono>{fmt(p.amount)}</Td>
-                <Td><TxBadge type={p.status} /></Td>
-                <Td>
-                  {p.customerBankAccount ? (
-                    <span style={{ fontSize: 12, color: 'var(--text3)', fontFamily: "'DM Mono',monospace" }}>
-                      {p.customerBankName} {p.customerBankBsb}/{p.customerBankAccount}
-                    </span>
-                  ) : <span style={{ color: 'var(--text3)', fontSize: 12 }}>—</span>}
-                </Td>
-                <Td>
-                  {p.status === 'pending' && (
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <Btn size="sm" variant="success" onClick={() => updateStatus.mutate({ id: p.id, status: 'completed' })}>✓ Complete</Btn>
-                      <Btn size="sm" variant="danger" onClick={() => updateStatus.mutate({ id: p.id, status: 'cancelled' })}>✗</Btn>
-                    </div>
-                  )}
-                </Td>
-              </Tr>
+              <PaymentRow key={p.id} p={p} onUpdate={(id, status) => updateStatus.mutate({ id, status })} />
             ))}
           </Table>
         )}
@@ -148,17 +281,12 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
 
 // ── Suppliers List ─────────────────────────────────────────────────────────
 export function SuppliersPage() {
-  // STEP 2 in money flow: We send funds to supplier
   const [selected, setSelected] = useState<Supplier | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const qc = useQueryClient();
 
-  const { data: suppliers = [], isLoading } = useQuery<Supplier[]>({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers').then(r => r.data) });
-
-  const deleteMut = useMutation({
-    mutationFn: (id: number) => api.delete(`/suppliers/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['suppliers'] }); toast('Supplier deleted'); },
-    onError: () => toast('Delete failed', 'error'),
+  const { data: suppliers = [], isLoading } = useQuery<Supplier[]>({
+    queryKey: ['suppliers'],
+    queryFn: () => api.get('/suppliers').then(r => r.data),
   });
 
   if (selected) return <SupplierDetail supplier={selected} onBack={() => setSelected(null)} />;
@@ -176,7 +304,7 @@ export function SuppliersPage() {
           {suppliers.length === 0 ? <Empty msg="No suppliers yet" /> : (
             <Table headers={['Name', 'Contact', 'Phone', 'Bank', 'Currencies', 'Actions']}>
               {suppliers.map(s => {
-                const currencies = (() => { try { return JSON.parse(s.supportedCurrencies) as string[]; } catch { return []; } })();
+                const curs = (() => { try { return JSON.parse(s.supportedCurrencies) as string[]; } catch { return []; } })();
                 return (
                   <Tr key={s.id} onClick={() => setSelected(s)}>
                     <Td><span style={{ fontWeight: 600 }}>{s.name}</span></Td>
@@ -185,13 +313,11 @@ export function SuppliersPage() {
                     <Td muted style={{ fontSize: 12 }}>{s.bankAccount ? `${s.bankBsb}/${s.bankAccount}` : '—'}</Td>
                     <Td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {currencies.map((c: string) => <CurrencyPill key={c} currency={c} />)}
+                        {curs.map((c: string) => <CurrencyPill key={c} currency={c} />)}
                       </div>
                     </Td>
-                    <Td>
-                      <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
-                        <Btn size="sm" variant="secondary" onClick={() => setSelected(s)}>View</Btn>
-                      </div>
+                    <Td onClick={e => e.stopPropagation()}>
+                      <Btn size="sm" variant="secondary" onClick={() => setSelected(s)}>View</Btn>
                     </Td>
                   </Tr>
                 );
