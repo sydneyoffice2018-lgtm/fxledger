@@ -88,7 +88,7 @@ const STAGE_ORDER = ['cash_received', 'bb_deposited', 'sent_to_supplier', 'suppl
 router.put('/:id/advance', async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
-    const { bbName, bbDepositRef, inCompanyAccountId, outCompanyAccountId, payoutMethod, payoutDetail, note } = req.body;
+    const { supplierId, bbName, bbDepositRef, inCompanyAccountId, outCompanyAccountId, payoutMethod, payoutDetail, note } = req.body;
 
     // Get current status
     const statusResult = await pool.query('SELECT status FROM remittance_orders WHERE id = $1', [orderId]);
@@ -106,6 +106,7 @@ router.put('/:id/advance', async (req, res) => {
     const params: any[] = [nextStatus];
     let p = 2;
 
+    if (supplierId)          { sets.push(`supplier_id = $${p++}`);           params.push(parseInt(supplierId)); }
     if (bbName)              { sets.push(`bb_name = $${p++}`);               params.push(bbName); }
     if (bbDepositRef)        { sets.push(`bb_deposit_ref = $${p++}`);        params.push(bbDepositRef); }
     if (inCompanyAccountId)  { sets.push(`in_company_account_id = $${p++}`); params.push(parseInt(inCompanyAccountId)); }
